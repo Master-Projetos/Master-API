@@ -1,24 +1,64 @@
 import os
-import time
+import json
+import logging
+import unicodedata
+from datetime import datetime, timedelta
 import threading
+import requests
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    StaleElementReferenceException,
-    ElementClickInterceptedException,
-    TimeoutException,
-)
 from core.settings import get_settings
-from core.constants import ALLOWED_RELATORIES, ALLOWED_ITEM_TYPES, GEOGRID_URL
+from core.constants import ALLOWED_RELATORIES, GEOGRID_URL, REGION_CITIES
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
 GEOGRID_USER = settings.GEOGRID_USER
 GEOGRID_PASS = settings.GEOGRID_PASSWORD
+SESSION_TTL = settings.SESSION_TTL_MINUTES
+
+_session : requests.Session | None = None
+_last_login_at : datetime | None = None
+
+GEOGRID_API = GEOGRID_URL.rstrip("/") + "/api/v3"
+GEOGRID_VERSION = "199.7"
+REGISTROS_POR_PAGINA = 1000
+
+# Map from the report's field names to the display column names the rest of the
+# pipeline (treat_viabilidade / dashboard) already expects.
+FIELD_MAP = {
+    "sigla": "Sigla",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "cidade": "Cidade",
+    "descricaoRecipienteTipo": "Tipo",
+    "quantidadeEquipamentos": "Quantidade equip.",
+    "quantidadePortas": "Quantidade portas",
+    "quantidadePortasOcupadas": "Portas ocupadas",
+    "quantidadePortasLivres": "Portas livres",
+    "quantidadePortasClienteAtendimento": "Portas atendimento cliente",
+}
+
+def _normalize(text: str) -> str:
+    if not isinstance(text, str):
+        text = ""
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    return text.strip().lower()
+
+
+CITY_TO_REGION = {
+    _normalize(city): region
+    for region, cities in REGION_CITIES.items()
+    for city in cities
+}
+
+
+def get_region(cidade: str) -> str:
+    normalized = _normalize(cidade)
+    if not normalized:
+        return "Indeterminado"
+    return CITY_TO_REGION.get(normalized, "Indeterminado")
+
 
 export_lock = threading.Lock()
 
@@ -30,23 +70,45 @@ export_status = {}
 def set_status(relatory: str, step: str, status: str = "processing"):
     export_status[relatory] = {"step": step, "status": status}
 
-def click(driver, by, value, timeout=15, retries=20, retry_delay=1):
-    last_error = None
-    for attempt in range(retries):
-        try:
-            element = WebDriverWait(driver, timeout).until(
-                EC.element_to_be_clickable((by, value))
-            )
-            if attempt < retries - 1:
-                element.click()
-            else:
-                # Last attempt: force click via JS
-                driver.execute_script("arguments[0].click();", element)
-            return element
-        except (StaleElementReferenceException, ElementClickInterceptedException, TimeoutException) as error:
-            last_error = error
-            time.sleep(retry_delay)
-    raise last_error
+
+def login():
+    logger.info("Logging in to Geogrid API")
+    session = requests.Session()
+    session.headers.update({
+        "Accept": "application/json",
+        "Geogrid-Version": GEOGRID_VERSION,
+    })
+    resp = session.post(f"{GEOGRID_API}/autenticar", json={
+        "usuario": GEOGRID_USER,
+        "senha": GEOGRID_PASS,
+        "codigoSeguranca": "",
+        "dadosDispositivo": {},
+        "hashDispositivo": None,
+    }, timeout=60)
+    resp.raise_for_status()
+
+    token = resp.json().get("autenticacao")
+    if not token:
+        logger.error("Login failed: no authentication token returned")
+        raise RuntimeError("Login failed: no authentication token returned")
+
+    session.headers["Authorization"] = token
+    logger.info("Login succeeded")
+    return session
+
+def ensure_session() -> requests.Session:
+    global _session, _last_login_at
+
+    expired = (
+        _last_login_at is None
+        or datetime.now() - _last_login_at > timedelta(minutes=SESSION_TTL)
+    )
+    if _session is None or expired:
+        logger.info("Session missing or expired, creating a new one")
+        _session = login()
+        _last_login_at = datetime.now()
+
+    return _session
 
 
 def export_relatory(relatory: str, download_dir: str = None):
@@ -58,99 +120,78 @@ def export_relatory(relatory: str, download_dir: str = None):
         download_dir = os.path.join(PROJECT_ROOT, "data")
     os.makedirs(download_dir, exist_ok=True)
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_experimental_option("prefs", {
-        "download.default_directory": download_dir,
-        "download.prompt_for_download": False,
-    })
+    logger.info("Starting export for relatory=%s", relatory)
+    set_status(relatory, step="login")
+    session = ensure_session()
 
-    driver = webdriver.Chrome(options=options)
+    registros = []
+    pagina = 1
+    total_paginas = None
+    while True:
+        resp = session.get(f"{GEOGRID_API}/relatorios/{relatory}", params={
+            "pagina": pagina,
+            "registrosPorPagina": REGISTROS_POR_PAGINA,
+            "consultarTotais": "S" if pagina == 1 else "N",
+            "modoProjeto[]": "N",
+        }, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
 
-    try:
-    # In headless mode, downloads are automatically blocked, even with
-    # download.default_directory set in options.
-    # So we use the Chrome DevTools Protocol to force downloads and set where they go.
-        driver.execute_cdp_cmd("Page.setDownloadBehavior", {
-            "behavior": "allow",
-            "downloadPath": download_dir,
-        })
+        pagina_registros = data.get("registros", [])
+        registros.extend(pagina_registros)
 
-        driver.get(GEOGRID_URL)
+        if total_paginas is None:
+            total = int(data.get("totalRegistros", 0))
+            total_paginas = max(1, -(-total // REGISTROS_POR_PAGINA))  # ceil
 
-        # LOGIN
-        set_status(relatory, step="login")
-        user_box = driver.find_element(by=By.NAME, value="usuario")
-        user_box.send_keys(GEOGRID_USER)
+        set_status(relatory, step=f"baixando pagina {pagina}/{total_paginas}")
+        logger.info("relatory=%s: downloaded page %s/%s", relatory, pagina, total_paginas)
 
-        password_box = driver.find_element(by=By.NAME, value="senha")
-        password_box.send_keys(GEOGRID_PASS)
+        if pagina >= total_paginas or not pagina_registros:
+            break
+        pagina += 1
 
-        # Cookie/terms banner doesn't always appear, so only click if it exists
-        cookies_button = driver.find_elements(by=By.NAME, value="aceitar")
-        if cookies_button:
-            click(driver, By.NAME, "aceitar")
+    file_path = os.path.join(download_dir, f"{relatory}.json")
+    with open(file_path, "w", encoding="utf-8") as fh:
+        json.dump(registros, fh, ensure_ascii=False)
 
-        click(driver, By.NAME, "entrar")
+    set_status(relatory, step="Concluido", status="Done")
+    logger.info("relatory=%s: export finished with %s records", relatory, len(registros))
 
-        # RELATORY SELECT
-        click(driver, By.CLASS_NAME, "elemento-menu")
-        click(driver, By.NAME, "relatorios")
-        click(driver, By.CSS_SELECTOR, f"div[data-relatorio='{relatory}']")
 
-        # COLUMNS IN THE XLSX
-        set_status(relatory, step="configurando colunas")
-        click(driver, By.NAME, "configurar")
-        if relatory in ALLOWED_ITEM_TYPES:
-            click(driver, By.XPATH, "//label[.//span[text()='Tipo']]//input[@name='item']")
-        click(driver, By.XPATH, "//label[.//span[text()='Usuário']]//input[@name='item']")
-        click(driver, By.NAME, "salvar")
-
-        # FILTER - exclude records that are still just a project (not executed yet)
-        # Not every relatory type exposes an "Execução" filter, so only click it if present.
-        set_status(relatory, step="filtrando dados")
-        click(driver, By.NAME, "adicionar-filtros")
-        execucao_xpath = "//label[.//span[text()='Execução']]//input[@name='item']"
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, execucao_xpath))
-            )
-            click(driver, By.XPATH, execucao_xpath)
-        except TimeoutException:
-            pass
-        click(driver, By.XPATH, "//button[@name='salvar' and normalize-space(text())='Aplicar filtros']")
-
-        # EXCEL
-        set_status(relatory, step="Exportando")
-        click(driver, By.NAME, "exportar-xls")
-        archive_name = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "div[name='titulo'] input"))
-        )
-        archive_name.clear()
-        archive_name.send_keys(relatory)
-        click(driver, By.XPATH, "//button[@name='salvar' and normalize-space(text())='Exportar']")
-
-        # Wait 2 minutes before ending the script, so it has time to download bigger relatories
-        time.sleep(120)
-    finally:
-        set_status(relatory, step="Concluido", status="Done")
-        driver.quit()
-        
-def run_export(relatory : str):
+def run_export(relatory: str):
+    global _session
     with export_lock:
-        export_relatory(relatory)
+        try:
+            export_relatory(relatory)
+        except requests.HTTPError as error:
+            if error.response is not None and error.response.status_code in (401, 403):
+                logger.warning("relatory=%s: session rejected (%s), invalidating cached session", relatory, error.response.status_code)
+                _session = None
+            logger.exception("relatory=%s: export failed", relatory)
+            set_status(relatory, step=f"Falha: {error}", status="Error")
+            raise
+        except Exception as error:
+            logger.exception("relatory=%s: export failed", relatory)
+            set_status(relatory, step=f"Falha: {error}", status="Error")
+            raise
 
-       
+
 def treat_viabilidade():
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     data_dir = os.path.join(PROJECT_ROOT, "data")
-    file_path = os.path.join(data_dir, "viabilidade.xlsx")
+    file_path = os.path.join(data_dir, "viabilidade.json")
 
     if not os.path.isfile(file_path):
+        logger.warning("treat_viabilidade: file not found at %s", file_path)
         return None
-    
-    raw_df = pd.read_excel(file_path)
-    
+
+    with open(file_path, encoding="utf-8") as fh:
+        registros = json.load(fh)
+
+    raw_df = pd.DataFrame(registros)
+    raw_df = raw_df[[c for c in FIELD_MAP if c in raw_df.columns]].rename(columns=FIELD_MAP)
+
     mask_cto = raw_df["Tipo"].str.contains("CTO", case=False, na=False)
 
     cto_df = raw_df[mask_cto].copy()
@@ -160,10 +201,14 @@ def treat_viabilidade():
         "Quantidade equip.", "Quantidade portas", "Portas ocupadas",
         "Portas livres", "Portas atendimento cliente",
     ]
+    for df in (cto_df, ceo_df):
+        df[cols_numericas] = df[cols_numericas].apply(pd.to_numeric, errors="coerce")
+        df["Regiao"] = df["Cidade"].apply(get_region)
+
     cto_df = cto_df.dropna(subset=cols_numericas, how="all")
     cto_df[cols_numericas] = cto_df[cols_numericas].fillna(0)
 
-    cols_tabela = ["Sigla", "Latitude", "Longitude", "Cidade"] + cols_numericas
+    cols_tabela = ["Sigla", "Latitude", "Longitude", "Cidade", "Regiao"] + cols_numericas
     cto_table = cto_df[cols_tabela].copy().fillna("")
 
     ceo_df = ceo_df.dropna(subset=cols_numericas, how="all")
@@ -180,6 +225,16 @@ def treat_viabilidade():
 
     return {
         "estatisticas": estatisticas,
-        "dataframe": cto_table.to_dict(orient="records"),
-        "ceo": ceo_table.to_dict(orient="records"),
+        "dataframe": _group_by_region(cto_table),
+        "ceo": _group_by_region(ceo_table),
+    }
+
+
+def _group_by_region(table: pd.DataFrame) -> dict:
+    return {
+        regiao: {
+            cidade: cidade_group.drop(columns=["Regiao", "Cidade"]).to_dict(orient="records")
+            for cidade, cidade_group in regiao_group.groupby("Cidade")
+        }
+        for regiao, regiao_group in table.groupby("Regiao")
     }

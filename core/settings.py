@@ -7,12 +7,13 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
     
-    API_VERSION : str = "0.0.1"
+    API_VERSION : str = "0.2.0"
     DEBUG : bool
+    
+    SESSION_TTL_MINUTES: int = 20
     
     GEOGRID_USER: str
     GEOGRID_PASSWORD: str
-    GEOGRID_API_KEY: str
     
 @lru_cache
 def get_settings():
