@@ -225,8 +225,8 @@ def treat_viabilidade():
 
     return {
         "estatisticas": estatisticas,
-        "dataframe": _group_by_region(cto_table),
-        "ceo": _group_by_region(ceo_table),
+        "ctos": _group_by_region(cto_table),
+        "ceos": _group_by_region(ceo_table),
     }
 
 
