@@ -1,24 +1,47 @@
 [project]
-name = "geogrid"
-version = "0.2.0"
-description = "PASTOR MALDONADO"
+name = 'Leclerc API'
+version = '0.3.0'
+description = 'API que ingloba todos os KPIS da master'
 authors = [
-    {name = "Eduardo",email = "eduardo.vchaves23@gmail.com"}
+    {name = 'Eduardo',email = 'eduardo.vchaves23@gmail.com'}
 ]
-requires-python = ">=3.13,<4.0"
+requires-python = '>=3.13,<4.0'
 dependencies = [
-    "requests (>=2.32.0,<3.0.0)",
-    "pandas (>=3.0.5,<4.0.0)",
-    "fastapi[standard] (>=0.141.1,<0.142.0)",
-    "slowapi (>=0.1.10,<0.2.0)"
+    'requests (>=2.32.0,<3.0.0)',
+    'pandas (>=3.0.5,<4.0.0)',
+    'fastapi[standard] (>=0.141.1,<0.142.0)',
+    'slowapi (>=0.1.10,<0.2.0)'
+]
+
+[build-system]
+requires = ['hatchling']
+build-backend = 'hatchling.build'
+
+[dependency-groups]
+dev = [
+    'ruff (>=0.16.8,<0.17.0)',
+    'taskipy (>=1.14.1,<2.0.0)'
 ]
 
 [tool.poetry]
 package-mode = false
 
 [tool.hatch.build.targets.wheel]
-packages = ["core", "v1"]
+packages = ['core', 'api']
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.taskipy.tasks]
+lint = 'ruff check .'
+format = 'ruff format .'
+pos_format = 'ruff check . --fix'
+
+[tool.ruff]
+line-length = 79
+extend-exclude = []
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT', 'FAST']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
