@@ -11,6 +11,7 @@ class Estatisticas(BaseModel):
     portas: int = Field(alias='Portas')
     portas_ocupadas: int = Field(alias='Portas ocupadas')
     portas_livres: int = Field(alias='Portas livres')
+    portas_bloqueadas: int = Field(alias='Portas bloqueadas')
     portas_atendimento_cliente: int = Field(alias='Portas atendimento cliente')
 
     model_config = ConfigDict(populate_by_name=True)
@@ -24,6 +25,7 @@ class RegistroRecipiente(BaseModel):
     quantidade_portas: float = Field(alias='Quantidade portas')
     portas_ocupadas: float = Field(alias='Portas ocupadas')
     portas_livres: float = Field(alias='Portas livres')
+    portas_bloqueadas: float = Field(alias='Portas bloqueadas')
     portas_atendimento_cliente: float = Field(
         alias='Portas atendimento cliente'
     )

@@ -21,7 +21,7 @@ COLUMNS_TO_DROP = [
 
 NUMERIC_COLUMNS = ['Valores Projetos - Aprovados', 'Valores Projetos - Total']
 
-# Emojis, símbolos e seletores de variação (ex.: "🔴 Atrasado", "⚠️ Vence")
+# Emojis, symbols and variation selectors (e.g. "🔴 Atrasado", "⚠️ Vence")
 EMOJI_PATTERN = (
     r'[\U0001F000-\U0001FAFF⌀-⏿☀-➿⬀-⯿'
     r'️‍]'

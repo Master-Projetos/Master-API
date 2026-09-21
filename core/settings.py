@@ -8,7 +8,7 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8',
     )
 
-    API_VERSION: str = '0.3.0'
+    API_VERSION: str = '0.3.1'
     DEBUG: bool
 
     SESSION_TTL_MINUTES: int = 20

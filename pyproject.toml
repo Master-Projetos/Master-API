@@ -1,6 +1,6 @@
 [project]
-name = 'Leclerc API'
-version = '0.3.0'
+name = 'leclerc-api'
+version = '0.3.1'
 description = 'API que ingloba todos os KPIS da master'
 authors = [
     {name = 'Eduardo',email = 'eduardo.vchaves23@gmail.com'}

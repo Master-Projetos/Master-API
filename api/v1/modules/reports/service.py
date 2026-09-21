@@ -36,6 +36,8 @@ FIELD_MAP = {
     'quantidadePortas': 'Quantidade portas',
     'quantidadePortasOcupadas': 'Portas ocupadas',
     'quantidadePortasLivres': 'Portas livres',
+    # The Geogrid UI labels this field "Portas bloqueadas"
+    'quantidadePortasReservadas': 'Portas bloqueadas',
     'quantidadePortasClienteAtendimento': 'Portas atendimento cliente',
 }
 
@@ -237,6 +239,7 @@ STATS_LABELS = {
     'Quantidade portas': 'Portas',
     'Portas ocupadas': 'Portas ocupadas',
     'Portas livres': 'Portas livres',
+    'Portas bloqueadas': 'Portas bloqueadas',
     'Portas atendimento cliente': 'Portas atendimento cliente',
 }
 
