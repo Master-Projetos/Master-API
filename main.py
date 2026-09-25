@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from core.settings import get_settings
-from core.logger import setup_logging
-from core.limiter import limiter
+
 from api.v1.router import v1_router
 from api.v2.router import v2_router
+from core.limiter import limiter
+from core.logger import setup_logging
+from core.settings import get_settings
 
 setup_logging()
 

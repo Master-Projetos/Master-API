@@ -1,9 +1,12 @@
 import logging
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from core.limiter import limiter
+
 from core.constants import ALLOWED_RELATORIES
-from .service import run_export, treat_viabilidade, export_lock, get_status
+from core.limiter import limiter
+
 from .schemas import ReportSchema, Viabily
+from .service import export_lock, get_status, run_export, treat_viabilidade
 
 logger = logging.getLogger(__name__)
 

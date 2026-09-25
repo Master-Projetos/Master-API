@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Request
+
 from core.limiter import limiter
-from .services import where_stroll_finish
+
 from .schemas import Root, Stroll
+from .services import where_stroll_finish
 
 router = APIRouter()
 

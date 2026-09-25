@@ -1,13 +1,15 @@
-import os
 import json
 import logging
+import os
+import threading
 import unicodedata
 from datetime import datetime, timedelta
-import threading
-import requests
+
 import pandas as pd
-from core.settings import get_settings
+import requests
+
 from core.constants import ALLOWED_RELATORIES, GEOGRID_URL, REGION_CITIES
+from core.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
