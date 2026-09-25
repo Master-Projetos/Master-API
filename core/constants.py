@@ -22,6 +22,9 @@ GEOGRID_URL = 'https://morfeu.geogridmaps.com.br/rbc/'
 
 B2B_SHEET_URL = 'https://docs.google.com/spreadsheets/d/REDACTED_SHEET_ID/export?format=csv&gid=285228629'
 
+# Stock sheet, "ESTOQUE MINIMO B2B" tab
+STOCK_SHEET_URL = 'https://docs.google.com/spreadsheets/d/REDACTED_SHEET_ID/export?format=csv&gid=864298730'
+
 # Cities without a listed region fall back to "Sul".
 REGION_CITIES = {
     'Centro-Oeste': [
