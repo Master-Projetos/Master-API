@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     GEOGRID_PASSWORD: str
 
     DATABASE_URL: str
+    
+    B2B_SHEET_URL: str
+    STOCK_SHEET_URL: str
 
 
 @lru_cache
