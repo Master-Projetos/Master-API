@@ -1,3 +1,7 @@
+from app.core.settings import get_settings
+
+settings = get_settings()
+
 ALLOWED_RELATORIES = [
     'cabos',
     'dutos',
@@ -20,10 +24,9 @@ ALLOWED_ITEM_TYPES = ['viabilidade', 'terminal', 'caixa', 'rack']
 
 GEOGRID_URL = 'https://morfeu.geogridmaps.com.br/rbc/'
 
-B2B_SHEET_URL = 'https://docs.google.com/spreadsheets/d/REDACTED_SHEET_ID/export?format=csv&gid=285228629'
+B2B_SHEET_URL = settings.B2B_SHEET_URL
 
-# Stock sheet, "ESTOQUE MINIMO B2B" tab
-STOCK_SHEET_URL = 'https://docs.google.com/spreadsheets/d/REDACTED_SHEET_ID/export?format=csv&gid=864298730'
+STOCK_SHEET_URL = settings.STOCK_SHEET_URL
 
 # Cities without a listed region fall back to "Sul".
 REGION_CITIES = {
