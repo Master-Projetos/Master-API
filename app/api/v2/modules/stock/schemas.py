@@ -7,6 +7,7 @@ class StockItem(BaseModel):
     site: str
     code: str
     description: str
+    reposition: bool | None
     unit: str | None
     min_stock: int | None
     safe_stock: int | None

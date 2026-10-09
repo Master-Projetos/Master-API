@@ -28,6 +28,53 @@ B2B_SHEET_URL = settings.B2B_SHEET_URL
 
 STOCK_SHEET_URL = settings.STOCK_SHEET_URL
 
+SWAP_SHEET_URL = settings.SWAP_SHEET_URL
+
+SWAP_V5_SHEET_URL = settings.SWAP_V5_SHEET_URL
+
+# Base export URL of the v6 stock sheet, without the tab (gid)
+STOCK_V6_SHEET_URL = settings.STOCK_V6_SHEET_URL
+
+# Tab name in the response -> gid of the tab in the sheet
+STOCK_V6_SHEETS = {
+    'dvl': '1702172882',
+    'lav': '1278376259',
+    'tte': '1643373498',
+    'uni': '749566893',
+    'mcl': '764963849',
+}
+
+STOCK_V6_DELETE_COLUMNS = [
+    'Tipo Saldo',
+    'Grupo',
+    'Codmat',
+    'Descrição Auxiliar',
+    'Codcpl',
+    'Cód. Mat. Auxiliar',
+    'Cód. Cpl. Auxiliar',
+    'Prog. RM',
+    'Prog. TM',
+    'Saldo Disponível',
+    'Valor',
+    'Cod. Grupo Material',
+    'Grupo de Material',
+]
+
+# Swap sheet sections the API can return; all of them when none is asked for
+SWAP_SECTIONS = [
+    'colocation',
+    'dark-fiber',
+    'trunk',
+    'transport',
+    'to-define',
+    'lambdas',
+    'capacity',
+    'lan-to-lan',
+    'last_mille',
+    'switch_port',
+    'link_ip',
+]
+
 # Cities without a listed region fall back to "Sul".
 REGION_CITIES = {
     'Centro-Oeste': [

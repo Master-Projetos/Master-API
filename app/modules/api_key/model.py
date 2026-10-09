@@ -12,6 +12,7 @@ class Scope(StrEnum):
     STOCK_READ = 'stock:read'
     B2B_READ = 'b2b:read'
     GEOGRID_READ = 'geogrid:read'
+    SWAP_READ = 'swap:read'
 
 
 class ApiKey(Base):

@@ -29,6 +29,11 @@ NUMERIC_COLUMNS = ('min_stock', 'total', 'balance')
 # prefix is matched
 BALANCE_LABEL_PREFIX = 'SALDO'
 
+# Each site also has a "REPOSIÇÃO REGIONAL" column next to its balance,
+# holding "SIM" or "NAO"
+REPOSITION_LABEL_PREFIX = 'REPOSI'
+REPOSITION_VALUES = {'SIM': True, 'NAO': False, 'NÃO': False}
+
 # Short code of each site, so it fits in a chart legend. Divinópolis is the CD
 SITE_CODES = {
     'DIVINOPOLIS': 'CD',
@@ -51,6 +56,7 @@ RESPONSE_COLUMNS = [
     'site',
     'code',
     'description',
+    'reposition',
     'unit',
     'min_stock',
     'safe_stock',
@@ -126,30 +132,33 @@ def _find_header_row(raw: pd.DataFrame) -> int:
     return matches[0]
 
 
-def _find_balance_columns(
-    labels: pd.Series, site_names: pd.Series
+def _find_site_columns(
+    labels: pd.Series, site_names: pd.Series, label_prefix: str
 ) -> dict[str, int]:
-    """Map each site name to the position of its balance column."""
-    balance_columns = {}
+    """Map each site name to the position of its column whose label starts
+    with `label_prefix`."""
+    site_columns = {}
 
     for position, label in labels.items():
         site_name = site_names.get(position)
         if pd.isna(site_name) or pd.isna(label):
             continue
 
-        if label.upper().startswith(BALANCE_LABEL_PREFIX):
-            balance_columns[site_name] = position
+        if label.upper().startswith(label_prefix):
+            site_columns[site_name] = position
 
     # A renamed label would silently drop a site from the response. The last
     # group in the header is not a site, so it is not expected to have one
     last_group = site_names.iloc[-1]
     missing_sites = (
-        set(site_names.dropna()) - set(balance_columns) - {last_group}
+        set(site_names.dropna()) - set(site_columns) - {last_group}
     )
     if missing_sites:
-        logger.warning('No balance column for: %s', sorted(missing_sites))
+        logger.warning(
+            'No "%s" column for: %s', label_prefix, sorted(missing_sites)
+        )
 
-    return balance_columns
+    return site_columns
 
 
 def _add_alert_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -253,17 +262,38 @@ def load_stock_data() -> pd.DataFrame:
             f'Missing columns in the sheet: {sorted(missing_columns)}'
         )
 
-    # Unpivot the balance column of each site into its own set of rows
+    reposition_columns = _find_site_columns(
+        labels, site_names, REPOSITION_LABEL_PREFIX
+    )
+
+    # Unpivot the balance and reposition columns of each site into its own
+    # set of rows
     site_frames = []
-    for site_name, position in _find_balance_columns(
-        labels, site_names
+    for site_name, position in _find_site_columns(
+        labels, site_names, BALANCE_LABEL_PREFIX
     ).items():
         site_df = pd.DataFrame(item_data)
         site_df['site'] = _get_site_code(site_name)
         site_df['balance'] = body[position]
+
+        reposition_position = reposition_columns.get(site_name)
+        site_df['reposition'] = (
+            body[reposition_position]
+            if reposition_position is not None
+            else pd.Series(pd.NA, index=body.index, dtype='string')
+        )
         site_frames.append(site_df)
 
     df = pd.concat(site_frames, ignore_index=True)
+
+    # "SIM" / "NAO" become true / false, and anything else null
+    df['reposition'] = (
+        df['reposition']
+        .str.strip()
+        .str.upper()
+        .map(REPOSITION_VALUES)
+        .astype('boolean')
+    )
 
     # The sheet has blank rows below the table
     df = df[df['description'].notna()]

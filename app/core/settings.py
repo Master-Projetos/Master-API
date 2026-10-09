@@ -9,7 +9,7 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8',
     )
 
-    API_VERSION: str = '0.3.1'
+    API_VERSION: str = '0.6.1'
     DEBUG: bool
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
@@ -20,9 +20,12 @@ class Settings(BaseSettings):
     GEOGRID_PASSWORD: str
 
     DATABASE_URL: str
-    
+
     B2B_SHEET_URL: str
     STOCK_SHEET_URL: str
+    SWAP_SHEET_URL: str
+    SWAP_V5_SHEET_URL: str
+    STOCK_V6_SHEET_URL: str
 
 
 @lru_cache
