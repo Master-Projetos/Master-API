@@ -3,4 +3,5 @@ __pycache__/
 .venv/
 .env
 output/
-data/
+data/.idea/
+.idea/
