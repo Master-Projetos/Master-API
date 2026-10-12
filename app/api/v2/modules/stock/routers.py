@@ -5,13 +5,9 @@ from fastapi import APIRouter, HTTPException, Request, Security
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.stock.services import (
-    get_dashboard,
-    load_restock_schedule,
-    load_stock_data,
-)
+from app.modules.stock.services import load_restock_schedule
 
-from .schemas import RestockSchedule, StockDashboard
+from .schemas import RestockSchedule
 
 logger = logging.getLogger(__name__)
 
@@ -20,20 +16,6 @@ router = APIRouter(
     tags=['Stock'],
     dependencies=[Security(require_scope(Scope.STOCK_READ))],
 )
-
-
-@router.get('/dashboard', response_model=StockDashboard)
-@limiter.limit('30/minute')
-def read_dashboard(request: Request):
-    try:
-        df = load_stock_data()
-    except Exception:
-        logger.exception('failed to load the stock spreadsheet')
-        raise HTTPException(
-            status_code=502, detail='Could not load the stock spreadsheet'
-        )
-
-    return get_dashboard(df)
 
 
 @router.get('/restock-schedule', response_model=RestockSchedule)

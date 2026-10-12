@@ -3,33 +3,6 @@ from datetime import date
 from pydantic import BaseModel
 
 
-class StockItem(BaseModel):
-    site: str
-    code: str
-    description: str
-    reposition: bool | None
-    unit: str | None
-    min_stock: int | None
-    safe_stock: int | None
-    balance: int | None
-    alert: bool | None
-    critical_alert: bool | None
-    total: int | None
-
-
-class StockSummary(BaseModel):
-    total_items: int
-    total_sites: int
-    alert_rows: int
-    critical_alert_rows: int
-
-
-class StockDashboard(BaseModel):
-    summary: StockSummary
-    alerts_by_site: dict[str, dict[str, int]]
-    items: list[StockItem]
-
-
 class RestockWindow(BaseModel):
     start: date
     end: date

@@ -7,7 +7,7 @@ from app.core.constants import STOCK_V6_SHEETS
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.stock.service_v6 import load_config, load_sheets
+from app.modules.stock.service_v6 import load_config, load_sheets, merge_minimal_stock
 
 from .schemas import StockConfigItem, StockSheets
 
@@ -59,3 +59,16 @@ def read_stock(
         raise HTTPException(
             status_code=502, detail='Could not load the stock spreadsheet'
         )
+
+@router.get('/minimal')
+@limiter.limit('10/minute')
+def get_stock_with_minimal(
+        request: Request
+):
+    merge_sheet = {}
+
+    for stock in SHEET_NAMES:
+        merge_df = merge_minimal_stock(stock)
+        merge_sheet[stock] = merge_df.astype(object).where(merge_df.notna(), None).to_dict(orient='records')
+
+    return merge_sheet

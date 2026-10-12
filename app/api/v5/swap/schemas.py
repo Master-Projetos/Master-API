@@ -1,8 +1,9 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel
 
-from app.api.v4.swap.schemas import CheckStatus
+CheckStatus = Literal['checked', 'missing_info', 'unchecked']
 
 
 # Only what the panel (the Front repo) reads, in v4's formats: it stores

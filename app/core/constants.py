@@ -28,7 +28,7 @@ B2B_SHEET_URL = settings.B2B_SHEET_URL
 
 STOCK_SHEET_URL = settings.STOCK_SHEET_URL
 
-SWAP_SHEET_URL = settings.SWAP_SHEET_URL
+# SWAP_SHEET_URL = settings.SWAP_SHEET_URL
 
 SWAP_V5_SHEET_URL = settings.SWAP_V5_SHEET_URL
 
@@ -59,6 +59,12 @@ STOCK_V6_DELETE_COLUMNS = [
     'Cod. Grupo Material',
     'Grupo de Material',
 ]
+
+MINIMAL_STOCK_DELETE = ['Unid.', 'Saldo CD',
+       'REPOSIÇÃO REGIONAL', 'SALDO LAVRAS', 'REPOSIÇÃO REGIONAL.1',
+       'SALDO TAUBATE', 'REPOSIÇÃO REGIONAL.2', 'SALDO UNAI',
+       'REPOSIÇÃO REGIONAL.3', 'SALDO MONTES CLAROS', 'REPOSIÇÃO REGIONAL.4',
+       'TOTAL']
 
 # Swap sheet sections the API can return; all of them when none is asked for
 SWAP_SECTIONS = [

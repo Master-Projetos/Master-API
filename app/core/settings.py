@@ -23,7 +23,6 @@ class Settings(BaseSettings):
 
     B2B_SHEET_URL: str
     STOCK_SHEET_URL: str
-    SWAP_SHEET_URL: str
     SWAP_V5_SHEET_URL: str
     STOCK_V6_SHEET_URL: str
 

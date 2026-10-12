@@ -46,12 +46,6 @@ SITE_CODES = {
 # The safe stock is the minimum stock plus this fraction of it
 SAFE_STOCK_MARGIN = 0.3
 
-# Alert level of each row in the per-site breakdown
-LEVEL_OK = 'ok'
-LEVEL_ALERT = 'alert'
-LEVEL_CRITICAL = 'critical_alert'
-LEVEL_NO_MINIMUM = 'no_minimum'
-
 RESPONSE_COLUMNS = [
     'site',
     'code',
@@ -315,36 +309,6 @@ def _to_records(df: pd.DataFrame) -> list[dict]:
     records = df.astype(object).where(df.notna(), None)
 
     return records.to_dict(orient='records')
-
-
-def get_summary(df: pd.DataFrame) -> dict:
-    """Overall totals of items, sites and alerts."""
-    return {
-        'total_items': int(df['code'].nunique()),
-        'total_sites': int(df['site'].nunique()),
-        'alert_rows': int(df['alert'].sum()),
-        'critical_alert_rows': int(df['critical_alert'].sum()),
-    }
-
-
-def get_alerts_by_site(df: pd.DataFrame) -> dict:
-    """Row count of each site per alert level, using the worst level that applies."""
-    levels = pd.Series(LEVEL_OK, index=df.index)
-    levels[df['alert'].fillna(False)] = LEVEL_ALERT
-    levels[df['critical_alert'].fillna(False)] = LEVEL_CRITICAL
-    # Items without a minimum were never judged, so they are not "ok"
-    levels[df['min_stock'].isna()] = LEVEL_NO_MINIMUM
-
-    return pd.crosstab(df['site'], levels).to_dict()
-
-
-def get_dashboard(df: pd.DataFrame) -> dict:
-    """Full payload of the stock dashboard endpoint."""
-    return {
-        'summary': get_summary(df),
-        'alerts_by_site': get_alerts_by_site(df),
-        'items': _to_records(df),
-    }
 
 
 def _parse_restock_year(raw: pd.DataFrame, header_row: int) -> int:

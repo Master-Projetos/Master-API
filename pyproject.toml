@@ -36,6 +36,7 @@ package-mode = false
 packages = ['core', 'api']
 
 [tool.taskipy.tasks]
+dev = 'fastapi dev'
 lint = 'ruff check .'
 format = 'ruff format .'
 pos_format = 'ruff check . --fix'
