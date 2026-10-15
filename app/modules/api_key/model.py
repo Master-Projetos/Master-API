@@ -13,6 +13,9 @@ class Scope(StrEnum):
     B2B_READ = 'b2b:read'
     GEOGRID_READ = 'geogrid:read'
     SWAP_READ = 'swap:read'
+    POLES_READ = 'poles:read'
+    ROUTE_POLES_READ = 'route_poles:read'
+    ROUTE_POLES_WRITE = 'route_poles:write'
 
 
 class ApiKey(Base):

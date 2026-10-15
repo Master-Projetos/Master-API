@@ -10,6 +10,11 @@ from app.core.settings import get_settings
 
 from app.core.database import Base
 from app.modules.api_key.model import ApiKey
+from app.modules.route_poles.model import (
+    RouteAnalysis,
+    RouteCable,
+    RouteCableType,
+)
 from app.modules.user.model import User
 
 # this is the Alembic Config object, which provides

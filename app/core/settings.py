@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     STOCK_SHEET_URL: str
     SWAP_V5_SHEET_URL: str
     STOCK_V6_SHEET_URL: str
+    POLES_V7_SHEET_URL: str
 
 
 @lru_cache

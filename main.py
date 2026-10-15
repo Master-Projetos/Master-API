@@ -7,6 +7,8 @@ from app.api.v2.router import v2_router
 from app.api.v3.router import v3_router
 from app.api.v5.router import v5_router
 from app.api.v6.router import v6_router
+from app.api.v7.router import v7_router
+from app.api.v8.router import v8_router
 
 from app.core.limiter import limiter
 from app.core.logger import setup_logging
@@ -31,3 +33,5 @@ app.include_router(v2_router, prefix='/api/v2')
 app.include_router(v3_router, prefix='/api/v3')
 app.include_router(v5_router, prefix='/api/v5')
 app.include_router(v6_router, prefix='/api/v6')
+app.include_router(v7_router, prefix='/api/v7')
+app.include_router(v8_router, prefix='/api/v8')

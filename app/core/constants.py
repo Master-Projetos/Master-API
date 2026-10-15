@@ -130,3 +130,9 @@ REGION_CITIES = {
         'varginha',
     ],
 }
+
+# OneDrive download link of the v7 pole licensing workbook
+POLES_V7_SHEET_URL = settings.POLES_V7_SHEET_URL
+
+# One tab per utility company, each with a "CIDADES" table
+POLES_V7_UTILITY_SHEETS = ['CEMIG', 'DME', 'EDP', 'ELEKTRO']

@@ -9,7 +9,7 @@ from uuid import UUID
 
 import jwt
 from fastapi import Depends, HTTPException, Request, Security
-from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from fastapi.security import APIKeyHeader, APIKeyQuery, OAuth2PasswordBearer
 from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,9 @@ from app.modules.user.model import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer('api/v3/auth/token')
 api_key_header = APIKeyHeader(name='X-API-Key', auto_error=False)
+# Only for routes opted in with require_scope(..., allow_query=True), for
+# clients that can't send headers (Google Sheets IMPORTDATA)
+api_key_query = APIKeyQuery(name='key', auto_error=False)
 password_hasher = PasswordHash.recommended()
 
 settings = get_settings()
@@ -126,6 +129,23 @@ async def get_api_key_principal(
     session: AsyncSession = Depends(get_session),
     raw_key: str | None = Security(api_key_header),
 ) -> ApiKeyPrincipal:
+    return await authenticate_api_key(request, session, raw_key)
+
+
+async def get_api_key_principal_or_query(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    header_key: str | None = Security(api_key_header),
+    query_key: str | None = Security(api_key_query),
+) -> ApiKeyPrincipal:
+    return await authenticate_api_key(
+        request, session, header_key or query_key
+    )
+
+
+async def authenticate_api_key(
+    request: Request, session: AsyncSession, raw_key: str | None
+) -> ApiKeyPrincipal:
     # Same response for every failure, so callers can't tell which check failed
     invalid_key_exception = HTTPException(
         status_code=HTTPStatus.UNAUTHORIZED,
@@ -177,9 +197,15 @@ async def get_api_key_principal(
     )
 
 
-def require_scope(scope: Scope):
+def require_scope(scope: Scope, allow_query: bool = False):
+    get_principal = (
+        get_api_key_principal_or_query
+        if allow_query
+        else get_api_key_principal
+    )
+
     async def dependency(
-        principal: ApiKeyPrincipal = Depends(get_api_key_principal),
+        principal: ApiKeyPrincipal = Depends(get_principal),
     ) -> ApiKeyPrincipal:
         if scope not in principal.scopes:
             raise HTTPException(
