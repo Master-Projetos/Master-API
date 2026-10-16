@@ -41,14 +41,18 @@ from app.modules.route_poles.service_v8 import (
     list_analyses,
     load_kmz,
     run_analysis,
+    run_city_split_analysis,
     run_multi_city_analysis,
     save_analysis,
+    save_city_analyses,
     summary_csv,
     update_analysis,
     update_row,
 )
 
 from .schemas import (
+    BackboneCityAnalysis,
+    BackboneCreated,
     CablePublic,
     CableTypePublic,
     CableTypeUpdate,
@@ -285,6 +289,80 @@ async def upload_multi_city_analysis(
     return RouteAnalysisMultiCreated(
         **created.model_dump(), cities=data.cities
     )
+
+
+@router.post(
+    '/analyses/upload-backbone',
+    response_model=BackboneCreated,
+    status_code=HTTPStatus.CREATED,
+    dependencies=[write_scope],
+)
+@limiter.limit('5/minute')
+async def upload_backbone_analysis(
+    request: Request,
+    session: SessionDep,
+    file: Annotated[UploadFile, File(description='Backbone KMZ or KML')],
+    options: Annotated[RouteUploadOptions, Depends(multi_upload_options)],
+):
+    """One analysis per city the backbone passes through, with the cables
+    cut at each border. A city that already has an analysis gets this one
+    summed into its latest (average span and KMZ files kept); otherwise a
+    new analysis is created.
+    """
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            detail=f'File larger than {MAX_UPLOAD_BYTES // 1_000_000} MB',
+        )
+    filename = PurePath(file.filename or 'backbone.kmz').name
+
+    try:
+        analyses = await run_in_threadpool(
+            run_city_split_analysis, content, filename, options
+        )
+    except SourceError as error:
+        logger.warning('city boundaries unavailable: %s', error)
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY, detail=str(error)
+        )
+    except AnalysisError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(error)
+        )
+    except ValidationError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail=error.errors(
+                include_url=False, include_context=False, include_input=False
+            ),
+        )
+    except OSError:
+        logger.exception('failed to download the pole base or city boundary')
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY,
+            detail='Could not download the pole base or the city boundary',
+        )
+
+    try:
+        saved = await save_city_analyses(session, analyses)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Analysis is being saved by another request',
+        )
+
+    cities = []
+    for analysis, merged in saved:
+        # Reloaded with its rows and the KMZ files it has
+        session.expunge(analysis)
+        row = await get_analysis(session, str(analysis.id), with_rows=True)
+        detail = public_analysis(request, *row, detail=True)
+        cities.append(
+            BackboneCityAnalysis(**detail.model_dump(), merged=merged)
+        )
+    return BackboneCreated(cities=cities)
 
 
 async def store_analysis(

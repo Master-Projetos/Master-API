@@ -1,6 +1,7 @@
 import csv
 import io
 import logging
+import math
 import re
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -100,6 +101,9 @@ BBOX_MARGIN = 0.001
 FIRST_NUMBER = re.compile(r'\d+')
 # Max length of the city and poles_base columns
 LABEL_MAX = 100
+# Sampling step (degrees, ~11 m) and precision of the cut at a city border
+CLIP_STEP = 1e-4
+CLIP_BISECTIONS = 30
 
 
 def run_analysis(
@@ -281,6 +285,172 @@ def run_multi_city_analysis(
         cables=[cable_row(c, options.radius_m) for c in cables],
         cities=city_rows,
     )
+
+
+def run_city_split_analysis(
+    content: bytes, filename: str, options: RouteUploadOptions
+) -> list[RouteAnalysisData]:
+    """One analysis per city the routes pass through, each with only the
+    stretch of the cables inside the city. Blocking: CPU and network.
+    """
+    cables = read_cables(content)
+    if not cables:
+        raise AnalysisError('Nenhuma linha encontrada no arquivo.')
+    vertices = [p for c in cables for line in c.lines for p in line]
+    cities = find_cities(vertices)
+    by_city = cities_poles(cities, vertices)
+    if not any(ps for ps, _ in by_city):
+        utilities = ', '.join(b.utility for b in POLE_BASES)
+        raise AnalysisError(
+            f'Nenhum poste das bases ({utilities}) nos municípios das rotas '
+            '(área de outra distribuidora?).'
+        )
+
+    analyses = []
+    for city, (poles, poles_base) in zip(cities, by_city):
+        city_cables = [
+            Cable(c.folder, c.name, c.cable_type, lines)
+            for c in cables
+            if (lines := clip_lines(c.lines, city.area))
+        ]
+        if city_cables:
+            analyses.append(
+                city_analysis_data(
+                    city, city_cables, (poles, poles_base), filename, options
+                )
+            )
+    return analyses
+
+
+def city_analysis_data(
+    city: City,
+    cables: list[Cable],
+    found_poles: tuple[list[LonLat], str],
+    filename: str,
+    options: RouteUploadOptions,
+) -> RouteAnalysisData:
+    """The analysis of the cables of one city (already cut at its border);
+    found_poles is (poles of the city, "Base de postes" label).
+    """
+    poles, poles_base = found_poles
+    result = analyze(
+        cables,
+        poles,
+        options.radius_m,
+        with_stretches=options.overlap_kmz or options.overlap_split_kmz,
+    )
+    near = result.near_poles
+    cable_types = cable_type_rows(cables, options.radius_m)
+    route_length_m = round(result.unique_m)
+    logger.info(
+        'city split route analysis: city=%s poles=%d near=%d unique=%.0f',
+        city.code,
+        len(poles),
+        len(near),
+        result.unique_m,
+    )
+
+    today = date.today()
+    return RouteAnalysisData(
+        code=f'{today.isoformat()}_{city.code}_{PurePath(filename).stem}',
+        analysis_date=today,
+        city=city.name,
+        ibge_code=city.code,
+        routes_file=filename,
+        poles_base=poles_base,
+        radius_m=options.radius_m,
+        city_poles=len(poles),
+        near_poles=len(near),
+        near_poles_pct=near_pct(len(near), len(poles)),
+        route_length_m=route_length_m,
+        avg_span_m=round(
+            (result.unique_m - result.no_pole_m) / len(near) if near else 0.0,
+            1,
+        ),
+        poles_kmz=near_poles_kmz(city, poles, result, options.radius_m),
+        all_poles_kmz=(
+            all_poles_kmz(city, poles) if options.export_all else None
+        ),
+        overlap_kmz=(
+            overlap_kmz(f'Sobreposição - {city.name}', result.stretches)
+            if options.overlap_kmz
+            else None
+        ),
+        with_overlap_kmz=(
+            with_overlap_kmz(
+                f'Cabos com sobreposição - {city.name}',
+                cables,
+                length_with_overlap(cable_types),
+            )
+            if options.overlap_split_kmz
+            else None
+        ),
+        without_overlap_kmz=(
+            without_overlap_kmz(
+                f'Cabos sem sobreposição - {city.name}',
+                result.stretches,
+                route_length_m,
+            )
+            if options.overlap_split_kmz
+            else None
+        ),
+        cable_types=cable_types,
+        cables=[cable_row(c, options.radius_m) for c in cables],
+    )
+
+
+def near_pct(near: int, total: int) -> float:
+    return round(100 * near / total, 1) if total else 0.0
+
+
+def clip_lines(lines: list[list[LonLat]], area) -> list[list[LonLat]]:
+    """The parts of the lines inside the area, cut at its border."""
+    clipped: list[list[LonLat]] = []
+    for line in lines:
+        current: list[LonLat] = []
+        for a, b in zip(line, line[1:]):
+            steps = max(1, math.ceil(math.dist(a, b) / CLIP_STEP))
+            points = [
+                (
+                    a[0] + (b[0] - a[0]) * k / steps,
+                    a[1] + (b[1] - a[1]) * k / steps,
+                )
+                for k in range(steps + 1)
+            ]
+            inside = [area.contains(*p) for p in points]
+            if not current and inside[0]:
+                current.append(a)
+            for k in range(steps):
+                p, q = points[k], points[k + 1]
+                if inside[k] == inside[k + 1]:
+                    continue
+                cut = border_point(area, p, q, inside[k])
+                if inside[k]:
+                    current.append(cut)
+                    if len(current) > 1:
+                        clipped.append(current)
+                    current = []
+                else:
+                    current = [cut]
+            if inside[-1]:
+                current.append(b)
+        if len(current) > 1:
+            clipped.append(current)
+    # A line that only touches the border leaves a piece with no length
+    return [line for line in clipped if len(set(line)) > 1]
+
+
+def border_point(area, inside_end: LonLat, outside_end: LonLat, swap: bool):
+    """Where the segment crosses the border, by bisection."""
+    p, q = (inside_end, outside_end) if swap else (outside_end, inside_end)
+    # p is inside, q is outside
+    for _ in range(CLIP_BISECTIONS):
+        mid = ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
+        if area.contains(*mid):
+            p = mid
+        else:
+            q = mid
+    return p
 
 
 def city_near_rows(
@@ -523,6 +693,65 @@ async def save_analysis(
     session.add(analysis)
     await session.commit()
     return analysis
+
+
+async def save_city_analyses(
+    session: AsyncSession, analyses: list[RouteAnalysisData]
+) -> list[tuple[RouteAnalysis, bool]]:
+    """(analysis, merged) of each city: summed into the latest analysis of
+    the city when there is one, else stored as a new analysis.
+    """
+    saved = []
+    for data in analyses:
+        existing = await session.scalar(
+            select(RouteAnalysis)
+            .where(RouteAnalysis.ibge_code == data.ibge_code)
+            .order_by(
+                RouteAnalysis.analysis_date.desc(),
+                RouteAnalysis.created_at.desc(),
+            )
+            .limit(1)
+            .options(
+                selectinload(RouteAnalysis.cable_types),
+                selectinload(RouteAnalysis.cables),
+            )
+        )
+        if existing is None:
+            saved.append((await save_analysis(session, data), False))
+        else:
+            merge_analysis(existing, data)
+            await session.commit()
+            saved.append((existing, True))
+    return saved
+
+
+def merge_analysis(analysis: RouteAnalysis, data: RouteAnalysisData) -> None:
+    """Adds the lengths, near poles, cable types and cables of data to the
+    analysis. The average span and the KMZ files are kept as they are.
+    """
+    analysis.routes_file = cities_label(
+        [*analysis.routes_file.split(' + '), data.routes_file], unique=True
+    )[:255]
+    analysis.city_poles = max(analysis.city_poles, data.city_poles)
+    analysis.near_poles += data.near_poles
+    analysis.near_poles_pct = min(
+        100.0, near_pct(analysis.near_poles, analysis.city_poles)
+    )
+    analysis.route_length_m += data.route_length_m
+
+    by_type = {row.cable_type: row for row in analysis.cable_types}
+    for item in data.cable_types:
+        row = by_type.get(item.cable_type)
+        if row is None:
+            analysis.cable_types.append(RouteCableType(**item.model_dump()))
+            continue
+        row.cables += item.cables
+        row.length_m += item.length_m
+        row.near_poles += item.near_poles
+        row.unique_length_m = (row.unique_length_m or 0) + item.unique_length_m
+    analysis.cables.extend(
+        RouteCable(**item.model_dump()) for item in data.cables
+    )
 
 
 def analysis_ref_condition(analysis_ref: str) -> ColumnElement[bool]:

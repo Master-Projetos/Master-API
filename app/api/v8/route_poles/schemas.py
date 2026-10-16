@@ -242,3 +242,14 @@ class RouteAnalysisDetail(RouteAnalysisPublic):
     cables: list[CablePublic]
     # Empty on single-city analyses
     cities: list[CityPublic]
+
+
+class BackboneCityAnalysis(RouteAnalysisDetail):
+    """A city of a backbone upload: its own analysis."""
+
+    # True when summed into the latest analysis the city already had
+    merged: bool
+
+
+class BackboneCreated(BaseModel):
+    cities: list[BackboneCityAnalysis]
