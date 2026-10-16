@@ -41,8 +41,9 @@ from app.modules.route_poles.service_v8 import (
     list_analyses,
     load_kmz,
     run_analysis,
-    run_multi_city_analysis,
+    run_city_split_analysis,
     save_analysis,
+    save_city_analyses,
     summary_csv,
     update_analysis,
     update_row,
@@ -54,6 +55,7 @@ from .schemas import (
     CableTypeUpdate,
     CableUpdate,
     CityPublic,
+    RouteAnalysisCitySaved,
     RouteAnalysisCreate,
     RouteAnalysisCreated,
     RouteAnalysisData,
@@ -255,8 +257,8 @@ async def upload_multi_city_analysis(
     filename = PurePath(file.filename or 'rotas.kmz').name
 
     try:
-        data = await run_in_threadpool(
-            run_multi_city_analysis, content, filename, options
+        analyses = await run_in_threadpool(
+            run_city_split_analysis, content, filename, options
         )
     except SourceError as error:
         logger.warning('city boundaries unavailable: %s', error)
@@ -281,10 +283,34 @@ async def upload_multi_city_analysis(
             detail='Could not download the pole base or the city boundary',
         )
 
-    created = await store_analysis(request, session, data)
-    return RouteAnalysisMultiCreated(
-        **created.model_dump(), cities=data.cities
-    )
+    try:
+        saved = await save_city_analyses(session, analyses)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Analysis is being saved by another request',
+        )
+
+    cities = []
+    for analysis, merged in saved:
+        _, kinds = await get_analysis(session, str(analysis.id))
+        cities.append(
+            RouteAnalysisCitySaved(
+                id=analysis.id,
+                code=analysis.code,
+                city=analysis.city,
+                ibge_code=analysis.ibge_code,
+                merged=merged,
+                city_poles=analysis.city_poles,
+                near_poles=analysis.near_poles,
+                near_poles_pct=analysis.near_poles_pct,
+                route_length_m=analysis.route_length_m,
+                avg_span_m=analysis.avg_span_m,
+                **kmz_links(request, analysis.id, kinds),
+            )
+        )
+    return RouteAnalysisMultiCreated(cities=cities)
 
 
 async def store_analysis(
@@ -301,9 +327,7 @@ async def store_analysis(
         )
 
     kinds = frozenset(
-        kind
-        for kind in KmzKind
-        if getattr(data, kind.column.key) is not None
+        kind for kind in KmzKind if getattr(data, kind.column.key) is not None
     )
     # Both lengths go with the with/without overlap KMZ
     lengths = (

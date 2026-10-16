@@ -152,8 +152,26 @@ class RouteAnalysisCreated(KmzLinks):
     length_without_overlap_m: int | None = None
 
 
-class RouteAnalysisMultiCreated(RouteAnalysisCreated):
-    cities: list[CityIn]
+class RouteAnalysisCitySaved(KmzLinks):
+    """A city of upload-multi: its own analysis, new or summed into the
+    latest one of the city.
+    """
+
+    id: UUID
+    code: str
+    city: str
+    ibge_code: str
+    # True when summed into an analysis the city already had
+    merged: bool
+    city_poles: int
+    near_poles: int
+    near_poles_pct: float
+    route_length_m: int
+    avg_span_m: float
+
+
+class RouteAnalysisMultiCreated(BaseModel):
+    cities: list[RouteAnalysisCitySaved]
 
 
 # Updates (PATCH): only the fields sent are changed. The None defaults are
