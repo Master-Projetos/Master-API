@@ -11,7 +11,7 @@ import jwt
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader, APIKeyQuery, OAuth2PasswordBearer
 from pwdlib import PasswordHash
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -181,12 +181,22 @@ async def authenticate_api_key(
     if api_key.revoked_at is not None or is_expired or not user.is_active:
         raise invalid_key_exception
 
-    # Avoid a DB write on every request
-    if (
-        api_key.last_used_at is None
-        or now - api_key.last_used_at > LAST_USED_UPDATE_INTERVAL
-    ):
-        api_key.last_used_at = now
+    # Avoid a DB write on every request. The staleness check is repeated in
+    # the WHERE so concurrent requests with the same key write only once:
+    # the losers wait on the row lock, re-check it and match no rows
+    stale_before = now - LAST_USED_UPDATE_INTERVAL
+    if api_key.last_used_at is None or api_key.last_used_at < stale_before:
+        await session.execute(
+            update(ApiKey)
+            .where(
+                ApiKey.id == api_key.id,
+                or_(
+                    ApiKey.last_used_at.is_(None),
+                    ApiKey.last_used_at < stale_before,
+                ),
+            )
+            .values(last_used_at=now)
+        )
         await session.commit()
 
     # Used by the rate limiter key_func

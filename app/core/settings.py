@@ -9,7 +9,7 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8',
     )
 
-    API_VERSION: str = '0.6.1'
+    API_VERSION: str = '0.8.2'
     DEBUG: bool
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60

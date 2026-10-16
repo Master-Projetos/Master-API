@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from collections.abc import AsyncGenerator
 from sqlalchemy import func
@@ -13,8 +14,12 @@ from app.core.settings import get_settings
 
 settings = get_settings()
 
-engine = create_async_engine(
-    url=settings.DATABASE_URL, echo=settings.DEBUG, pool_pre_ping=True
+engine = create_async_engine(url=settings.DATABASE_URL, pool_pre_ping=True)
+
+# Not echo=True: it adds its own handler on top of the root one, so every
+# statement was logged twice
+logging.getLogger('sqlalchemy.engine').setLevel(
+    logging.INFO if settings.DEBUG else logging.WARNING
 )
 
 async_session = async_sessionmaker(engine, expire_on_commit=False)
