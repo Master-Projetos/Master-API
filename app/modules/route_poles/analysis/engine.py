@@ -14,15 +14,10 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from ..constants import DUPLICATE_M, NO_POLE_M, PARALLEL_COS, PARALLEL_M
 from .geometry import XY, Grid, LocalProjection, segment_distance, vincenty
 from .routes import Cable
 
-DUPLICATE_M = 4.0
-PARALLEL_M = 10.0
-# Minimum |cosine| between two pieces to be parallel (up to ~25 degrees)
-PARALLEL_COS = 0.9
-# A route stretch with no pole closer than this goes to "no pole"
-NO_POLE_M = 25.0
 # Poles this far from a cable are mostly across the street: their density
 # estimates how many of the near poles are on the other side
 BACKSIDE_FROM_M, BACKSIDE_TO_M = 12, 20

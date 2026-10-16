@@ -5,6 +5,7 @@ import logging
 import unicodedata
 from dataclasses import dataclass
 
+from ..constants import STATES
 from .errors import AnalysisError, SourceError
 from .geometry import LonLat
 from .http import fetch
@@ -34,8 +35,6 @@ STATE_MESH_SOURCES = (
     (GEODATA_BR_URL, 'geodata-br (IBGE simplificado)'),
 )
 
-# IBGE state codes searched (the first 2 digits of a city code)
-STATES = {'31': 'MG', '35': 'SP'}
 # Route vertices sampled to find the city the routes are in
 DETECTION_SAMPLE = 400
 IBGE_CODE_HINT = 'Informe o código IBGE (ibge_code).'

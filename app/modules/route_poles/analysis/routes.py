@@ -3,21 +3,32 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+from collections import Counter
 from dataclasses import dataclass, field
 
+from ..constants import (
+    CABLE_TYPE_PREFIXES,
+    EXCLUDED_CABLE_PREFIXES,
+    MAX_KML_BYTES,
+    UNKNOWN_CABLE_TYPE,
+)
 from .errors import AnalysisError
 from .geometry import LonLat
 
 logger = logging.getLogger(__name__)
 
 ZIP_MAGIC = b'PK'
-# Uncompressed KML limit: guards against a malformed (or zip bomb) KMZ
-MAX_KML_BYTES = 200_000_000
-# Cables whose name starts with this are fictitious and left out
-FAKE_CABLE_PREFIX = 'MIT'
-# "FO-12 ...", "FO12 ...", "fo_06 ..." -> FO-12, FO-06
-CABLE_TYPE = re.compile(r'\s*FO[-_ ]?(\d+)', re.IGNORECASE)
-UNKNOWN_TYPE = 'não informado'
+# Longest prefix first, so a shorter one can't steal its match
+CABLE_TYPE = re.compile(
+    r'\s*('
+    + '|'.join(
+        re.escape(prefix)
+        for prefix in sorted(CABLE_TYPE_PREFIXES, key=len, reverse=True)
+    )
+    + r')[-_ ]?(\d+)',
+    re.IGNORECASE,
+)
+_TYPE_LABELS = {p.upper(): label for p, label in CABLE_TYPE_PREFIXES.items()}
 # A KML coordinate is lon,lat[,alt]
 MIN_COORDINATES = 2
 
@@ -38,7 +49,19 @@ class Cable:
 
 def cable_type(name: str) -> str:
     match = CABLE_TYPE.match(name)
-    return f'FO-{int(match.group(1)):02d}' if match else UNKNOWN_TYPE
+    if not match:
+        return UNKNOWN_CABLE_TYPE
+    label = _TYPE_LABELS[match.group(1).upper()]
+    return f'{label}-{int(match.group(2)):02d}'
+
+
+def excluded_prefix(name: str) -> str | None:
+    """The EXCLUDED_CABLE_PREFIXES entry the name starts with, if any."""
+    upper = name.strip().upper()
+    return next(
+        (p for p in EXCLUDED_CABLE_PREFIXES if upper.startswith(p.upper())),
+        None,
+    )
 
 
 def kml_bytes(content: bytes) -> bytes:
@@ -107,10 +130,10 @@ def read_cables(content: bytes) -> list[Cable]:
             f'O arquivo não é um KML válido ({error}).'
         ) from None
 
-    cables, fake = [], 0
+    cables = []
+    excluded: Counter[str] = Counter()
 
     def walk(element, folders: list[str]) -> None:
-        nonlocal fake
         for child in element:
             tag = _tag(child)
             if tag in {'Document', 'Folder'}:
@@ -120,8 +143,8 @@ def read_cables(content: bytes) -> list[Cable]:
                 lines = _lines(child)
                 if not lines:
                     continue
-                if name.upper().startswith(FAKE_CABLE_PREFIX):
-                    fake += 1
+                if prefix := excluded_prefix(name):
+                    excluded[prefix] += 1
                     continue
                 # The first level is the document itself
                 folder = '/'.join(f for f in folders[1:] if f) or (
@@ -130,8 +153,6 @@ def read_cables(content: bytes) -> list[Cable]:
                 cables.append(Cable(folder, name, cable_type(name), lines))
 
     walk(root, [])
-    if fake:
-        logger.info(
-            '%d cables starting with %r left out', fake, FAKE_CABLE_PREFIX
-        )
+    if excluded:
+        logger.info('cables left out by name prefix: %s', dict(excluded))
     return cables

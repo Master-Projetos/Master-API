@@ -16,8 +16,7 @@ settings = get_settings()
 
 engine = create_async_engine(url=settings.DATABASE_URL, pool_pre_ping=True)
 
-# Not echo=True: it adds its own handler on top of the root one, so every
-# statement was logged twice
+# Not echo=True: its own handler logged every statement twice
 logging.getLogger('sqlalchemy.engine').setLevel(
     logging.INFO if settings.DEBUG else logging.WARNING
 )

@@ -10,6 +10,8 @@ from pydantic import (
     field_validator,
 )
 
+from app.modules.route_poles.constants import DEFAULT_RADIUS_M, MAX_RADIUS_M
+
 # Shared by the create, update and read schemas, so the rules stay in one place
 CableType = Annotated[str, Field(min_length=1, max_length=50)]
 City = Annotated[str, Field(max_length=100)]
@@ -63,6 +65,8 @@ class RouteAnalysisData(BaseModel):
     poles_kmz: bytes
     all_poles_kmz: bytes | None = None
     overlap_kmz: bytes | None = None
+    with_overlap_kmz: bytes | None = None
+    without_overlap_kmz: bytes | None = None
     cable_types: list[CableTypeIn] = Field(max_length=1_000)
     cables: list[CableIn] = Field(max_length=100_000)
 
@@ -73,6 +77,8 @@ class RouteAnalysisCreate(RouteAnalysisData):
     poles_kmz: Base64Bytes
     all_poles_kmz: Base64Bytes | None = None
     overlap_kmz: Base64Bytes | None = None
+    with_overlap_kmz: Base64Bytes | None = None
+    without_overlap_kmz: Base64Bytes | None = None
 
 
 class RouteUploadOptions(BaseModel):
@@ -89,7 +95,10 @@ class RouteUploadOptions(BaseModel):
         description='IBGE city code, e.g. 3122306',
     )
     radius_m: float = Field(
-        default=25.0, gt=0, le=100, description='Max pole-cable distance'
+        default=DEFAULT_RADIUS_M,
+        gt=0,
+        le=MAX_RADIUS_M,
+        description='Max pole-cable distance',
     )
     export_all: bool = Field(
         default=False, description="Also store a KMZ with all the city's poles"
@@ -97,6 +106,11 @@ class RouteUploadOptions(BaseModel):
     overlap_kmz: bool = Field(
         default=False,
         description='Also store a KMZ showing what counts and what is overlap',
+    )
+    overlap_split_kmz: bool = Field(
+        default=False,
+        description='Also store two KMZ, the cables with overlap and without '
+        'it, and return both lengths',
     )
 
     @field_validator('city', 'ibge_code', mode='before')
@@ -112,11 +126,16 @@ class KmzLinks(BaseModel):
     poles_kmz_url: str
     all_poles_kmz_url: str | None
     overlap_kmz_url: str | None
+    with_overlap_kmz_url: str | None
+    without_overlap_kmz_url: str | None
 
 
 class RouteAnalysisCreated(KmzLinks):
     id: UUID
     code: str
+    # Only with the with/without overlap KMZ; null otherwise
+    length_with_overlap_m: int | None = None
+    length_without_overlap_m: int | None = None
 
 
 # Updates (PATCH): only the fields sent are changed. The None defaults are

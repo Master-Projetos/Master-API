@@ -21,13 +21,19 @@ from app.api.v8.route_poles.schemas import (
 from app.modules.route_poles.analysis.city import City, find_city
 from app.modules.route_poles.analysis.engine import RouteResult, analyze
 from app.modules.route_poles.analysis.errors import AnalysisError, SourceError
-from app.modules.route_poles.analysis.kmz import overlap_kmz, points_kmz
+from app.modules.route_poles.analysis.kmz import (
+    overlap_kmz,
+    points_kmz,
+    with_overlap_kmz,
+    without_overlap_kmz,
+)
 from app.modules.route_poles.analysis.pole_base import (
     POLE_BASES,
     local_bases,
     read_poles,
 )
 from app.modules.route_poles.analysis.routes import Cable, read_cables
+from app.modules.route_poles.constants import BASE_MIN_SHARE, CLOSE_POLE_M
 from app.modules.route_poles.model import (
     KmzKind,
     RouteAnalysis,
@@ -58,6 +64,8 @@ SUMMARY_HEADER = [
     'KMZ postes utilizados',
     'KMZ todos os postes',
     'KMZ sobreposição',
+    'KMZ com sobreposição',
+    'KMZ sem sobreposição',
 ]
 CABLE_TYPES_HEADER = [
     'ID análise',
@@ -87,12 +95,6 @@ LonLat = tuple[float, float]
 
 # Margin (degrees) around the city when reading the pole tiles
 BBOX_MARGIN = 0.001
-# Share of the city's poles a utility needs to be named in "Base de postes":
-# every pole counts, but a network that only crosses the city border is not
-# named (e.g. 31 Cemig-D poles in Campos do Jordão, an Elektro city)
-BASE_MIN_SHARE = 0.05
-# The poles KMZ splits the near poles at this distance (m)
-CLOSE_POLE_M = 5.0
 FIRST_NUMBER = re.compile(r'\d+')
 
 
@@ -113,9 +115,14 @@ def run_analysis(
     poles, poles_base = city_poles(city, vertices)
 
     result = analyze(
-        cables, poles, options.radius_m, with_stretches=options.overlap_kmz
+        cables,
+        poles,
+        options.radius_m,
+        with_stretches=options.overlap_kmz or options.overlap_split_kmz,
     )
     near = result.near_poles
+    cable_types = cable_type_rows(cables, options.radius_m)
+    route_length_m = round(result.unique_m)
     logger.info(
         'route analysis: city=%s poles=%d near=%d length=%.0f unique=%.0f',
         city.code,
@@ -137,7 +144,7 @@ def run_analysis(
         city_poles=len(poles),
         near_poles=len(near),
         near_poles_pct=round(100 * len(near) / len(poles), 1),
-        route_length_m=round(result.unique_m),
+        route_length_m=route_length_m,
         avg_span_m=round(
             (result.unique_m - result.no_pole_m) / len(near) if near else 0.0,
             1,
@@ -151,9 +158,32 @@ def run_analysis(
             if options.overlap_kmz
             else None
         ),
-        cable_types=cable_type_rows(cables, options.radius_m),
+        with_overlap_kmz=(
+            with_overlap_kmz(
+                f'Cabos com sobreposição - {city.name}',
+                cables,
+                length_with_overlap(cable_types),
+            )
+            if options.overlap_split_kmz
+            else None
+        ),
+        without_overlap_kmz=(
+            without_overlap_kmz(
+                f'Cabos sem sobreposição - {city.name}',
+                result.stretches,
+                route_length_m,
+            )
+            if options.overlap_split_kmz
+            else None
+        ),
+        cable_types=cable_types,
         cables=[cable_row(c, options.radius_m) for c in cables],
     )
+
+
+def length_with_overlap(cable_types: list[CableTypeIn]) -> int:
+    """Every cable's full length: the sum of "Metros" in "Por tipo"."""
+    return sum(row.length_m for row in cable_types)
 
 
 def city_poles(city: City, vertices: list[LonLat]) -> tuple[list[LonLat], str]:
@@ -272,21 +302,12 @@ async def save_analysis(
     await session.execute(
         delete(RouteAnalysis).where(RouteAnalysis.code == data.code)
     )
+    # model_dump() of a RouteAnalysisCreate would base64-encode the KMZ
+    # again; the attributes hold the decoded bytes
+    kmz = {kind.column.key: getattr(data, kind.column.key) for kind in KmzKind}
     analysis = RouteAnalysis(
-        # model_dump() of a RouteAnalysisCreate would base64-encode the KMZ
-        # again; the attributes hold the decoded bytes
-        **data.model_dump(
-            exclude={
-                'cable_types',
-                'cables',
-                'poles_kmz',
-                'all_poles_kmz',
-                'overlap_kmz',
-            }
-        ),
-        poles_kmz=data.poles_kmz,
-        all_poles_kmz=data.all_poles_kmz,
-        overlap_kmz=data.overlap_kmz,
+        **data.model_dump(exclude={'cable_types', 'cables', *kmz}),
+        **kmz,
         cable_types=[
             RouteCableType(**item.model_dump()) for item in data.cable_types
         ],
@@ -307,7 +328,7 @@ def analysis_ref_condition(analysis_ref: str) -> ColumnElement[bool]:
 
 # (analysis, the KMZ files it has), without loading the KMZ bytes
 AnalysisRow = tuple[RouteAnalysis, frozenset[KmzKind]]
-OPTIONAL_KMZ = (KmzKind.ALL_POLES, KmzKind.OVERLAP)
+OPTIONAL_KMZ = tuple(kind for kind in KmzKind if kind != KmzKind.POLES)
 
 
 def analysis_query() -> Select:

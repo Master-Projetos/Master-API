@@ -39,6 +39,13 @@ class RouteAnalysis(Base):
     overlap_kmz: Mapped[bytes | None] = mapped_column(
         LargeBinary, deferred=True
     )
+    # Only with overlap_split_kmz: the cables whole, and only what counts
+    with_overlap_kmz: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
+    without_overlap_kmz: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
 
     cable_types: Mapped[list['RouteCableType']] = relationship(
         cascade='all, delete-orphan',
@@ -53,11 +60,16 @@ class RouteAnalysis(Base):
 
 
 class KmzKind(StrEnum):
-    """The KMZ files an analysis can have; the value is the download path."""
+    """The KMZ files an analysis can have; the value is the download path.
+
+    Also the order of the summary.csv KMZ columns: new ones go at the end.
+    """
 
     POLES = 'poles'
     ALL_POLES = 'all-poles'
     OVERLAP = 'overlap'
+    WITH_OVERLAP = 'with-overlap'
+    WITHOUT_OVERLAP = 'without-overlap'
 
     @property
     def column(self):
@@ -65,6 +77,8 @@ class KmzKind(StrEnum):
             KmzKind.POLES: RouteAnalysis.poles_kmz,
             KmzKind.ALL_POLES: RouteAnalysis.all_poles_kmz,
             KmzKind.OVERLAP: RouteAnalysis.overlap_kmz,
+            KmzKind.WITH_OVERLAP: RouteAnalysis.with_overlap_kmz,
+            KmzKind.WITHOUT_OVERLAP: RouteAnalysis.without_overlap_kmz,
         }[self]
 
 

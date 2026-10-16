@@ -34,12 +34,12 @@ import pyogrio
 
 from app.modules.route_poles.analysis.http import download, fetch
 from app.modules.route_poles.analysis.pole_base import (
-    EXTRA_RELEASE,
     POLE_BASES,
     TILE_N,
     TILE_STEPS,
     TILE_ZOOM,
 )
+from app.modules.route_poles.constants import EXTRA_RELEASE
 
 URL_BUSCA_ANEEL = (
     'https://dadosabertos-aneel.opendata.arcgis.com/api/search/v1'

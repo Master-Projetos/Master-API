@@ -25,6 +25,10 @@ from sqlalchemy.exc import IntegrityError
 from app.core.limiter import limiter
 from app.core.security import SessionDep, require_scope
 from app.modules.api_key.model import Scope
+from app.modules.route_poles.constants import (
+    DEFAULT_RADIUS_M,
+    MAX_UPLOAD_BYTES,
+)
 from app.modules.route_poles.model import KmzKind, RouteCable, RouteCableType
 from app.modules.route_poles.service_v8 import (
     AnalysisError,
@@ -33,6 +37,7 @@ from app.modules.route_poles.service_v8 import (
     cables_csv,
     delete_analysis,
     get_analysis,
+    length_with_overlap,
     list_analyses,
     load_kmz,
     run_analysis,
@@ -59,8 +64,6 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/route-poles', tags=['Route poles'])
-
-MAX_UPLOAD_BYTES = 50_000_000
 
 # The CSVs are read by Google Sheets IMPORTDATA, which can only pass the key
 # in the URL (?key=...)
@@ -96,7 +99,7 @@ def kmz_url(request: Request, analysis_id: UUID, kind: KmzKind) -> str:
 def kmz_links(
     request: Request, analysis_id: UUID, kinds: frozenset[KmzKind]
 ) -> dict[str, str | None]:
-    """poles_kmz_url, all_poles_kmz_url, overlap_kmz_url (None when absent)."""
+    """<kind>_kmz_url for every KmzKind (None when absent)."""
     return {
         f'{kind.name.lower()}_kmz_url': (
             kmz_url(request, analysis_id, kind) if kind in kinds else None
@@ -125,9 +128,16 @@ def upload_options(
     ibge_code: Annotated[
         str | None, Form(description='7 digits, e.g. 3122306. Optional')
     ] = None,
-    radius_m: Annotated[float, Form()] = 25.0,
+    radius_m: Annotated[float, Form()] = DEFAULT_RADIUS_M,
     export_all: Annotated[bool, Form()] = False,
     overlap_kmz: Annotated[bool, Form()] = False,
+    overlap_split_kmz: Annotated[
+        bool,
+        Form(
+            description='Also store the KMZ with and without overlap, and '
+            'return both lengths'
+        ),
+    ] = False,
 ) -> RouteUploadOptions:
     # A form model can't share the multipart body with a separate File field
     try:
@@ -137,6 +147,7 @@ def upload_options(
             radius_m=radius_m,
             export_all=export_all,
             overlap_kmz=overlap_kmz,
+            overlap_split_kmz=overlap_split_kmz,
         )
     except ValidationError as error:
         raise RequestValidationError(
@@ -211,15 +222,25 @@ async def store_analysis(
             detail='Analysis is being saved by another request',
         )
 
-    kinds = {KmzKind.POLES}
-    if data.all_poles_kmz:
-        kinds.add(KmzKind.ALL_POLES)
-    if data.overlap_kmz:
-        kinds.add(KmzKind.OVERLAP)
+    kinds = frozenset(
+        kind
+        for kind in KmzKind
+        if getattr(data, kind.column.key) is not None
+    )
+    # Both lengths go with the with/without overlap KMZ
+    lengths = (
+        {
+            'length_with_overlap_m': length_with_overlap(data.cable_types),
+            'length_without_overlap_m': data.route_length_m,
+        }
+        if data.with_overlap_kmz is not None
+        else {}
+    )
     return RouteAnalysisCreated(
         id=analysis.id,
         code=analysis.code,
-        **kmz_links(request, analysis.id, frozenset(kinds)),
+        **lengths,
+        **kmz_links(request, analysis.id, kinds),
     )
 
 
@@ -396,12 +417,15 @@ KMZ_FILE_PREFIX = {
     KmzKind.POLES: 'postes_utilizados',
     KmzKind.ALL_POLES: 'postes_municipio',
     KmzKind.OVERLAP: 'sobreposicao',
+    KmzKind.WITH_OVERLAP: 'cabos_com_sobreposicao',
+    KmzKind.WITHOUT_OVERLAP: 'cabos_sem_sobreposicao',
 }
 
 
 # The KMZ route has no API key: the links go into the spreadsheet cells, and
 # the random analysis id (UUID4) is what keeps them private.
-# poles.kmz, all-poles.kmz or overlap.kmz
+# poles.kmz, all-poles.kmz, overlap.kmz, with-overlap.kmz or
+# without-overlap.kmz
 @router.get('/analyses/{analysis_id}/{kind}.kmz')
 @limiter.limit('30/minute')
 async def download_kmz(

@@ -16,6 +16,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..constants import CEMIG_RELEASE, EXTRA_RELEASE
 from .geometry import LonLat
 from .http import download
 
@@ -27,15 +28,10 @@ TILE_STEPS = 65536
 POLE_BYTES = 4
 TILE_PATH = re.compile(r'(?:^|/)(\d+)/(\d+)\.bin$')
 
-# Cemig-D: published by github.com/VinnyByn/ROUTE-MAP
-CEMIG_RELEASE = 'postes-2025-12-31'
 CEMIG_URL = (
     'https://github.com/VinnyByn/ROUTE-MAP/releases/download/'
     f'{CEMIG_RELEASE}/postes.tar.gz'
 )
-# The other utilities: made by scripts/gerar_base_postes.py and published
-# in this repository's releases
-EXTRA_RELEASE = 'postes-extra-2025-12-31'
 EXTRA_URL = (
     'https://github.com/Master-Projetos/Master-API/releases/download/'
     f'{EXTRA_RELEASE}/{{asset}}'
