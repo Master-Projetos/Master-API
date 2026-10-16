@@ -41,6 +41,7 @@ from app.modules.route_poles.service_v8 import (
     list_analyses,
     load_kmz,
     run_analysis,
+    run_multi_city_analysis,
     save_analysis,
     summary_csv,
     update_analysis,
@@ -52,10 +53,12 @@ from .schemas import (
     CableTypePublic,
     CableTypeUpdate,
     CableUpdate,
+    CityPublic,
     RouteAnalysisCreate,
     RouteAnalysisCreated,
     RouteAnalysisData,
     RouteAnalysisDetail,
+    RouteAnalysisMultiCreated,
     RouteAnalysisPublic,
     RouteAnalysisUpdate,
     RouteUploadOptions,
@@ -209,6 +212,81 @@ async def upload_analysis(
     return await store_analysis(request, session, data)
 
 
+def multi_upload_options(
+    radius_m: Annotated[float, Form()] = DEFAULT_RADIUS_M,
+    export_all: Annotated[bool, Form()] = False,
+    overlap_kmz: Annotated[bool, Form()] = False,
+    overlap_split_kmz: Annotated[
+        bool,
+        Form(
+            description='Also store the KMZ with and without overlap, and '
+            'return both lengths'
+        ),
+    ] = False,
+) -> RouteUploadOptions:
+    # The cities always come from the routes
+    return upload_options(
+        radius_m=radius_m,
+        export_all=export_all,
+        overlap_kmz=overlap_kmz,
+        overlap_split_kmz=overlap_split_kmz,
+    )
+
+
+@router.post(
+    '/analyses/upload-multi',
+    response_model=RouteAnalysisMultiCreated,
+    status_code=HTTPStatus.CREATED,
+    dependencies=[write_scope],
+)
+@limiter.limit('5/minute')
+async def upload_multi_city_analysis(
+    request: Request,
+    session: SessionDep,
+    file: Annotated[UploadFile, File(description='Routes KMZ or KML')],
+    options: Annotated[RouteUploadOptions, Depends(multi_upload_options)],
+):
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            detail=f'File larger than {MAX_UPLOAD_BYTES // 1_000_000} MB',
+        )
+    filename = PurePath(file.filename or 'rotas.kmz').name
+
+    try:
+        data = await run_in_threadpool(
+            run_multi_city_analysis, content, filename, options
+        )
+    except SourceError as error:
+        logger.warning('city boundaries unavailable: %s', error)
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY, detail=str(error)
+        )
+    except AnalysisError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(error)
+        )
+    except ValidationError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail=error.errors(
+                include_url=False, include_context=False, include_input=False
+            ),
+        )
+    except OSError:
+        logger.exception('failed to download the pole base or city boundary')
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY,
+            detail='Could not download the pole base or the city boundary',
+        )
+
+    created = await store_analysis(request, session, data)
+    return RouteAnalysisMultiCreated(
+        **created.model_dump(), cities=data.cities
+    )
+
+
 async def store_analysis(
     request: Request, session: SessionDep, data: RouteAnalysisData
 ) -> RouteAnalysisCreated:
@@ -255,9 +333,12 @@ def public_analysis(
     fields = {
         name: getattr(analysis, name)
         for name in schema.model_fields
-        if name not in links
+        if name not in links and name != 'cities'
     }
     if detail:
+        fields['cities'] = [
+            CityPublic.model_validate(row) for row in analysis.cities
+        ]
         fields['cable_types'] = [
             CableTypePublic.model_validate(row) for row in analysis.cable_types
         ]

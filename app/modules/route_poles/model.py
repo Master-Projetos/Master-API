@@ -57,6 +57,12 @@ class RouteAnalysis(Base):
         passive_deletes=True,
         order_by='(RouteCable.folder, RouteCable.name)',
     )
+    # Only on multi-city analyses
+    cities: Mapped[list['RouteAnalysisCity']] = relationship(
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        order_by='RouteAnalysisCity.city',
+    )
 
 
 class KmzKind(StrEnum):
@@ -114,3 +120,19 @@ class RouteCable(Base):
     # Length not shared with a cable that comes before it in the KMZ; null on
     # analyses stored before it existed
     unique_length_m: Mapped[float | None]
+
+
+class RouteAnalysisCity(Base):
+    """A city a multi-city analysis passes through."""
+
+    __tablename__ = 'route_analysis_cities'
+
+    analysis_id: Mapped[UUID] = mapped_column(
+        ForeignKey('route_analyses.id', ondelete='CASCADE'), index=True
+    )
+    city: Mapped[str] = mapped_column(String(100))
+    ibge_code: Mapped[str] = mapped_column(String(10))
+    poles_base: Mapped[str] = mapped_column(String(100))
+    city_poles: Mapped[int]
+    near_poles: Mapped[int]
+    near_poles_pct: Mapped[float]

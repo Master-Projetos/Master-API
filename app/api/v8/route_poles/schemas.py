@@ -47,6 +47,18 @@ class CableIn(BaseModel):
     unique_length_m: Meters
 
 
+class CityIn(BaseModel):
+    """A city a multi-city analysis passes through."""
+
+    city: City
+    ibge_code: IbgeCode
+    # Empty when no pole base covers the city
+    poles_base: PolesBase
+    city_poles: Count
+    near_poles: Count
+    near_poles_pct: Percent
+
+
 class RouteAnalysisData(BaseModel):
     """An analysis to store, with the KMZ files as bytes."""
 
@@ -69,6 +81,8 @@ class RouteAnalysisData(BaseModel):
     without_overlap_kmz: bytes | None = None
     cable_types: list[CableTypeIn] = Field(max_length=1_000)
     cables: list[CableIn] = Field(max_length=100_000)
+    # Only on multi-city analyses
+    cities: list[CityIn] = Field(default_factory=list, max_length=1_000)
 
 
 class RouteAnalysisCreate(RouteAnalysisData):
@@ -138,6 +152,10 @@ class RouteAnalysisCreated(KmzLinks):
     length_without_overlap_m: int | None = None
 
 
+class RouteAnalysisMultiCreated(RouteAnalysisCreated):
+    cities: list[CityIn]
+
+
 # Updates (PATCH): only the fields sent are changed. The None defaults are
 # never validated, so sending null for a field is rejected.
 class UpdateModel(BaseModel):
@@ -195,6 +213,12 @@ class CablePublic(CableIn):
     updated_at: datetime
 
 
+class CityPublic(CityIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+
+
 class RouteAnalysisPublic(KmzLinks):
     id: UUID
     code: str
@@ -216,3 +240,5 @@ class RouteAnalysisPublic(KmzLinks):
 class RouteAnalysisDetail(RouteAnalysisPublic):
     cable_types: list[CableTypePublic]
     cables: list[CablePublic]
+    # Empty on single-city analyses
+    cities: list[CityPublic]

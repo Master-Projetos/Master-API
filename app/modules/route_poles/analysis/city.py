@@ -37,6 +37,8 @@ STATE_MESH_SOURCES = (
 
 # Route vertices sampled to find the city the routes are in
 DETECTION_SAMPLE = 400
+# Route vertices sampled to find every city the routes pass through
+MULTI_DETECTION_SAMPLE = 5000
 IBGE_CODE_HINT = 'Informe o código IBGE (ibge_code).'
 
 
@@ -287,6 +289,85 @@ def find_city(
     return City(
         found_code, found_name, Area(_polygons(feature['geometry'])), source
     )
+
+
+def _boxes_overlap(a: tuple, b: tuple) -> bool:
+    return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
+
+def _state_features(state: str, failures: list[str]) -> tuple[list, str]:
+    """(city features of the state mesh, source); ([], '') when all fail."""
+    for url, source in STATE_MESH_SOURCES:
+        label = f'{source} {_states_label([state])}'
+        try:
+            geojson = json.loads(fetch(url.format(state=state)))
+            return geojson['features'], source
+        except Exception as error:
+            failures.append(f'{label}: {_describe(error)}')
+            logger.warning('%s unavailable: %s', label, error)
+    return [], ''
+
+
+def find_cities(points: list[LonLat]) -> list[City]:
+    """Every city (MG and SP) the route vertices are in, most vertices first.
+
+    Raises AnalysisError (route outside MG/SP) or SourceError (IBGE down).
+    """
+    sample = points[:: max(1, len(points) // MULTI_DETECTION_SAMPLE)]
+    route_box = (
+        min(p[0] for p in sample),
+        min(p[1] for p in sample),
+        max(p[0] for p in sample),
+        max(p[1] for p in sample),
+    )
+    names: dict[str, str] = {}
+    failures: list[str] = []
+    # (vertices inside, code, state mesh area, source)
+    found = []
+    remaining = sample
+    for state in STATES:
+        names.update(_city_names(state))
+        features, source = _state_features(state, failures)
+        if not features:
+            # A missing state could hide some of the cities
+            raise SourceError(
+                'Não consegui o limite dos municípios de '
+                f'{_states_label([state])} (' + '; '.join(failures) + ').'
+            )
+        for feature in features:
+            area = Area(_polygons(feature['geometry']))
+            if not _boxes_overlap(area.bbox, route_box):
+                continue
+            outside = [p for p in remaining if not area.contains(*p)]
+            if len(outside) < len(remaining):
+                code = _feature_code(feature.get('properties') or {})
+                found.append((
+                    len(remaining) - len(outside),
+                    code,
+                    area,
+                    source,
+                ))
+                remaining = outside
+    if not found:
+        raise AnalysisError(
+            'As rotas não passam por nenhum município de '
+            f'{_states_label(STATES)}.'
+        )
+
+    cities = []
+    for inside, code, area, source in sorted(found, key=lambda f: -f[0]):
+        name = names.get(code) or code
+        # Prefer the best quality boundary of each city
+        try:
+            cities.append(City(code, name, _city_mesh(code), CITY_MESH_SOURCE))
+        except Exception:
+            logger.warning('IBGE city mesh of %s unavailable', code)
+            cities.append(City(code, name, area, source))
+    logger.info(
+        'cities detected by the routes: %s',
+        ', '.join(f'{c.name} ({c.code})' for c in cities),
+    )
+    return cities
 
 
 def _describe(error: Exception) -> str:
