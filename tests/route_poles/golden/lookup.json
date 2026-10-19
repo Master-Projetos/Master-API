@@ -1,0 +1,287 @@
+{
+ "by_code": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306"
+  ],
+  "result": {
+   "bbox": [
+    -44.9,
+    -20.15,
+    -44.88,
+    -20.13
+   ],
+   "code": "3122306",
+   "name": "Divinópolis",
+   "polygons": 1
+  }
+ },
+ "by_code_all_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-31-mun.json"
+  ],
+  "result": {
+   "error": "SourceError"
+  }
+ },
+ "by_code_mesh_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31"
+  ],
+  "result": {
+   "bbox": [
+    -44.9,
+    -20.15,
+    -44.88,
+    -20.13
+   ],
+   "code": "3122306",
+   "name": "Divinópolis",
+   "polygons": 1
+  }
+ },
+ "by_code_missing_everywhere": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-31-mun.json"
+  ],
+  "result": {
+   "error": "SourceError"
+  }
+ },
+ "by_code_missing_in_first_source": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-31-mun.json"
+  ],
+  "result": {
+   "bbox": [
+    -44.9,
+    -20.15,
+    -44.88,
+    -20.13
+   ],
+   "code": "3122306",
+   "name": "Divinópolis",
+   "polygons": 1
+  }
+ },
+ "by_name": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306"
+  ],
+  "result": {
+   "bbox": [
+    -44.9,
+    -20.15,
+    -44.88,
+    -20.13
+   ],
+   "code": "3122306",
+   "name": "Divinópolis",
+   "polygons": 1
+  }
+ },
+ "by_routes": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306"
+  ],
+  "result": {
+   "bbox": [
+    -44.9,
+    -20.15,
+    -44.88,
+    -20.13
+   ],
+   "code": "3122306",
+   "name": "Divinópolis",
+   "polygons": 1
+  }
+ },
+ "by_routes_first_source_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-31-mun.json",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306"
+  ],
+  "result": {
+   "bbox": [
+    -44.9,
+    -20.15,
+    -44.88,
+    -20.13
+   ],
+   "code": "3122306",
+   "name": "Divinópolis",
+   "polygons": 1
+  }
+ },
+ "cities_all_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-31-mun.json"
+  ],
+  "result": {
+   "error": "SourceError"
+  }
+ },
+ "cities_by_routes": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/35",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3132404"
+  ],
+  "result": [
+   {
+    "bbox": [
+     -44.9,
+     -20.15,
+     -44.88,
+     -20.13
+    ],
+    "code": "3122306",
+    "name": "Divinópolis",
+    "polygons": 1
+   },
+   {
+    "bbox": [
+     -44.88,
+     -20.15,
+     -44.86,
+     -20.13
+    ],
+    "code": "3132404",
+    "name": "Itaúna",
+    "polygons": 1
+   }
+  ]
+ },
+ "cities_first_source_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-31-mun.json",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/35",
+   "raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-35-mun.json",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3132404"
+  ],
+  "result": [
+   {
+    "bbox": [
+     -44.9,
+     -20.15,
+     -44.88,
+     -20.13
+    ],
+    "code": "3122306",
+    "name": "Divinópolis",
+    "polygons": 1
+   },
+   {
+    "bbox": [
+     -44.88,
+     -20.15,
+     -44.86,
+     -20.13
+    ],
+    "code": "3132404",
+    "name": "Itaúna",
+    "polygons": 1
+   }
+  ]
+ },
+ "cities_mesh_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/35",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3122306",
+   "servicodados.ibge.gov.br/api/v3/malhas/municipios/3132404"
+  ],
+  "result": [
+   {
+    "bbox": [
+     -44.9,
+     -20.15,
+     -44.88,
+     -20.13
+    ],
+    "code": "3122306",
+    "name": "Divinópolis",
+    "polygons": 1
+   },
+   {
+    "bbox": [
+     -44.88,
+     -20.15,
+     -44.86,
+     -20.13
+    ],
+    "code": "3132404",
+    "name": "Itaúna",
+    "polygons": 1
+   }
+  ]
+ },
+ "cities_outside": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/31",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios",
+   "servicodados.ibge.gov.br/api/v3/malhas/estados/35"
+  ],
+  "result": {
+   "error": "AnalysisError"
+  }
+ },
+ "name_ambiguous": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios"
+  ],
+  "result": {
+   "error": "AnalysisError"
+  }
+ },
+ "name_list_down": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios"
+  ],
+  "result": {
+   "error": "SourceError"
+  }
+ },
+ "name_unknown": {
+  "calls": [
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios",
+   "servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios"
+  ],
+  "result": {
+   "error": "AnalysisError"
+  }
+ }
+}

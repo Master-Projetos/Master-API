@@ -70,24 +70,25 @@ def kml_bytes(content: bytes) -> bytes:
         return content
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as kmz:
-            kmls = [
-                i
-                for i in kmz.infolist()
-                if i.filename.lower().endswith('.kml')
-            ]
-            if not kmls:
-                raise AnalysisError(
-                    'O KMZ não tem nenhum arquivo .kml dentro.'
-                )
-            main = next((i for i in kmls if i.filename == 'doc.kml'), kmls[0])
-            if main.file_size > MAX_KML_BYTES:
-                raise AnalysisError(
-                    f'KML grande demais ({main.file_size / 1e6:.0f} MB '
-                    'descompactado).'
-                )
-            return kmz.read(main)
+            return _main_kml(kmz)
     except zipfile.BadZipFile:
-        raise AnalysisError('Arquivo KMZ corrompido.') from None
+        raise AnalysisError('Corrupted KMZ file.') from None
+
+
+def _main_kml(kmz: zipfile.ZipFile) -> bytes:
+    kmls = [
+        info
+        for info in kmz.infolist()
+        if info.filename.lower().endswith('.kml')
+    ]
+    if not kmls:
+        raise AnalysisError('The KMZ has no .kml file inside.')
+    main = next((info for info in kmls if info.filename == 'doc.kml'), kmls[0])
+    if main.file_size > MAX_KML_BYTES:
+        raise AnalysisError(
+            f'KML too large ({main.file_size / 1e6:.0f} MB uncompressed).'
+        )
+    return kmz.read(main)
 
 
 def _tag(element) -> str:
@@ -127,7 +128,7 @@ def read_cables(content: bytes) -> list[Cable]:
         root = ET.fromstring(kml_bytes(content))
     except ET.ParseError as error:
         raise AnalysisError(
-            f'O arquivo não é um KML válido ({error}).'
+            f'The file is not a valid KML ({error}).'
         ) from None
 
     cables = []

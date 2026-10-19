@@ -1,0 +1,780 @@
+{
+ "no_poles": {
+  "single": "AnalysisError",
+  "split": "AnalysisError"
+ },
+ "single_full": {
+  "analysis_date": "DATE",
+  "avg_span_m": 40.9,
+  "cable_types": [
+   {
+    "cable_type": "FO-06",
+    "cables": 1,
+    "length_m": 732,
+    "near_poles": 19,
+    "unique_length_m": 0
+   },
+   {
+    "cable_type": "FO-12",
+    "cables": 1,
+    "length_m": 3140,
+    "near_poles": 38,
+    "unique_length_m": 3140
+   },
+   {
+    "cable_type": "FO-24",
+    "cables": 1,
+    "length_m": 1046,
+    "near_poles": 0,
+    "unique_length_m": 1046
+   },
+   {
+    "cable_type": "FO-48",
+    "cables": 1,
+    "length_m": 627,
+    "near_poles": 3,
+    "unique_length_m": 627
+   },
+   {
+    "cable_type": "FO-144",
+    "cables": 1,
+    "length_m": 523,
+    "near_poles": 14,
+    "unique_length_m": 0
+   },
+   {
+    "cable_type": "não informado",
+    "cables": 1,
+    "length_m": 568,
+    "near_poles": 0,
+    "unique_length_m": 568
+   }
+  ],
+  "cables": [
+   {
+    "cable_type": "FO-12",
+    "folder": "Backbone",
+    "length_m": 3139.5,
+    "name": "FO-12 Backbone",
+    "near_poles": 38,
+    "near_poles_5m": 37,
+    "no_pole_m": 1589,
+    "unique_length_m": 3139.5
+   },
+   {
+    "cable_type": "FO-06",
+    "folder": "Ramais",
+    "length_m": 731.9,
+    "name": "FO-06 Duplicate",
+    "near_poles": 19,
+    "near_poles_5m": 18,
+    "no_pole_m": 0,
+    "unique_length_m": 0.0
+   },
+   {
+    "cable_type": "FO-144",
+    "folder": "Ramais",
+    "length_m": 522.8,
+    "name": "FO-144 Parallel",
+    "near_poles": 14,
+    "near_poles_5m": 13,
+    "no_pole_m": 0,
+    "unique_length_m": 0.0
+   },
+   {
+    "cable_type": "não informado",
+    "folder": "Ramais",
+    "length_m": 567.7,
+    "name": "Loose cable",
+    "near_poles": 0,
+    "near_poles_5m": 0,
+    "no_pole_m": 568,
+    "unique_length_m": 567.7
+   },
+   {
+    "cable_type": "FO-48",
+    "folder": "Multi",
+    "length_m": 627.3,
+    "name": "FO-48 Multi",
+    "near_poles": 3,
+    "near_poles_5m": 3,
+    "no_pole_m": 502,
+    "unique_length_m": 627.3
+   },
+   {
+    "cable_type": "FO-24",
+    "folder": "Multi",
+    "length_m": 1045.6,
+    "name": "F0-24 Letter zero",
+    "near_poles": 0,
+    "near_poles_5m": 0,
+    "no_pole_m": 1046,
+    "unique_length_m": 1045.6
+   }
+  ],
+  "city": "Divinópolis",
+  "city_poles": 48,
+  "code": "DATE_3122306_backbone_bh",
+  "ibge_code": "3122306",
+  "kmz": {
+   "all_poles_kmz": {
+    "length": 7182,
+    "sha256": "deb59ed8a1f81aabe362d5a3a533153ddca4f2707b3224b5ed7503ed99731265"
+   },
+   "overlap_kmz": {
+    "length": 176237,
+    "sha256": "218b8fe085e1949b7732f669ecf6e4878ff66e77f9b9c6e937de1b3d59d9e118"
+   },
+   "poles_kmz": {
+    "length": 7006,
+    "sha256": "7e4f7d4f840242c9f72c0d311a0d1cc574a1529235a6275984318e56edb0e40e"
+   },
+   "with_overlap_kmz": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>Cabos com sobreposição - Divinópolis</name><description>Metragem com sobreposição: 6.636 m. Cada cabo aparece inteiro, mesmo onde se sobrepõe a outro. Um trecho é sobreposição quando passa a até 4 m de um cabo que vem antes no KMZ de rotas, ou corre paralelo a ele a até 15 m preso ao mesmo poste.</description><Style id=\"cable\"><LineStyle><color>ff0080ff</color><width>3</width></LineStyle></Style><Placemark><name>FO-12 Backbone</name><description>3139.5 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8950000,-20.1400000,0 -44.8700000,-20.1400000,0 -44.8650000,-20.1405000,0</coordinates></LineString></Placemark><Placemark><name>FO-06 Duplicate</name><description>731.9 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8930000,-20.1400000,0 -44.8860000,-20.1400000,0</coordinates></LineString></Placemark><Placemark><name>FO-144 Parallel</name><description>522.8 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8920000,-20.1399300,0 -44.8870000,-20.1399300,0</coordinates></LineString></Placemark><Placemark><name>Loose cable</name><description>567.7 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8700000,-20.1360000,0 -44.8650000,-20.1380000,0</coordinates></LineString></Placemark><Placemark><name>FO-48 Multi</name><description>627.3 m</description><styleUrl>#cable</styleUrl><MultiGeometry><LineString><tessellate>1</tessellate><coordinates>-44.8990000,-20.1450000,0 -44.8960000,-20.1450000,0</coordinates></LineString><LineString><tessellate>1</tessellate><coordinates>-44.8990000,-20.1435000,0 -44.8960000,-20.1435000,0</coordinates></LineString></MultiGeometry></Placemark><Placemark><name>F0-24 Letter zero</name><description>1045.6 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8720000,-20.1330000,0 -44.8620000,-20.1330000,0</coordinates></LineString></Placemark></Document></kml>",
+   "without_overlap_kmz": {
+    "length": 142791,
+    "sha256": "0ada24eac96fbf77eafcde6b39c8a882489922d77658e1721fe4b3ff73e32d0a"
+   }
+  },
+  "near_poles": 41,
+  "near_poles_pct": 85.4,
+  "poles_base": "BDGD Cemig-D 2025-12-31",
+  "radius_m": 25.0,
+  "route_length_m": 5380,
+  "routes_file": "backbone_bh.kmz"
+ },
+ "single_plain": {
+  "analysis_date": "DATE",
+  "avg_span_m": 40.9,
+  "cable_types": [
+   {
+    "cable_type": "FO-06",
+    "cables": 1,
+    "length_m": 732,
+    "near_poles": 19,
+    "unique_length_m": 0
+   },
+   {
+    "cable_type": "FO-12",
+    "cables": 1,
+    "length_m": 3140,
+    "near_poles": 38,
+    "unique_length_m": 3140
+   },
+   {
+    "cable_type": "FO-24",
+    "cables": 1,
+    "length_m": 1046,
+    "near_poles": 0,
+    "unique_length_m": 1046
+   },
+   {
+    "cable_type": "FO-48",
+    "cables": 1,
+    "length_m": 627,
+    "near_poles": 3,
+    "unique_length_m": 627
+   },
+   {
+    "cable_type": "FO-144",
+    "cables": 1,
+    "length_m": 523,
+    "near_poles": 14,
+    "unique_length_m": 0
+   },
+   {
+    "cable_type": "não informado",
+    "cables": 1,
+    "length_m": 568,
+    "near_poles": 0,
+    "unique_length_m": 568
+   }
+  ],
+  "cables": [
+   {
+    "cable_type": "FO-12",
+    "folder": "Backbone",
+    "length_m": 3139.5,
+    "name": "FO-12 Backbone",
+    "near_poles": 38,
+    "near_poles_5m": 37,
+    "no_pole_m": 1589,
+    "unique_length_m": 3139.5
+   },
+   {
+    "cable_type": "FO-06",
+    "folder": "Ramais",
+    "length_m": 731.9,
+    "name": "FO-06 Duplicate",
+    "near_poles": 19,
+    "near_poles_5m": 18,
+    "no_pole_m": 0,
+    "unique_length_m": 0.0
+   },
+   {
+    "cable_type": "FO-144",
+    "folder": "Ramais",
+    "length_m": 522.8,
+    "name": "FO-144 Parallel",
+    "near_poles": 14,
+    "near_poles_5m": 13,
+    "no_pole_m": 0,
+    "unique_length_m": 0.0
+   },
+   {
+    "cable_type": "não informado",
+    "folder": "Ramais",
+    "length_m": 567.7,
+    "name": "Loose cable",
+    "near_poles": 0,
+    "near_poles_5m": 0,
+    "no_pole_m": 568,
+    "unique_length_m": 567.7
+   },
+   {
+    "cable_type": "FO-48",
+    "folder": "Multi",
+    "length_m": 627.3,
+    "name": "FO-48 Multi",
+    "near_poles": 3,
+    "near_poles_5m": 3,
+    "no_pole_m": 502,
+    "unique_length_m": 627.3
+   },
+   {
+    "cable_type": "FO-24",
+    "folder": "Multi",
+    "length_m": 1045.6,
+    "name": "F0-24 Letter zero",
+    "near_poles": 0,
+    "near_poles_5m": 0,
+    "no_pole_m": 1046,
+    "unique_length_m": 1045.6
+   }
+  ],
+  "city": "Divinópolis",
+  "city_poles": 48,
+  "code": "DATE_3122306_backbone_bh",
+  "ibge_code": "3122306",
+  "kmz": {
+   "all_poles_kmz": null,
+   "overlap_kmz": null,
+   "poles_kmz": {
+    "length": 7006,
+    "sha256": "7e4f7d4f840242c9f72c0d311a0d1cc574a1529235a6275984318e56edb0e40e"
+   },
+   "with_overlap_kmz": null,
+   "without_overlap_kmz": null
+  },
+  "near_poles": 41,
+  "near_poles_pct": 85.4,
+  "poles_base": "BDGD Cemig-D 2025-12-31",
+  "radius_m": 25.0,
+  "route_length_m": 5380,
+  "routes_file": "backbone_bh.kmz"
+ },
+ "single_wide": {
+  "analysis_date": "DATE",
+  "avg_span_m": 40.9,
+  "cable_types": [
+   {
+    "cable_type": "FO-06",
+    "cables": 1,
+    "length_m": 732,
+    "near_poles": 19,
+    "unique_length_m": 0
+   },
+   {
+    "cable_type": "FO-12",
+    "cables": 1,
+    "length_m": 3140,
+    "near_poles": 38,
+    "unique_length_m": 3140
+   },
+   {
+    "cable_type": "FO-24",
+    "cables": 1,
+    "length_m": 1046,
+    "near_poles": 0,
+    "unique_length_m": 1046
+   },
+   {
+    "cable_type": "FO-48",
+    "cables": 1,
+    "length_m": 627,
+    "near_poles": 3,
+    "unique_length_m": 627
+   },
+   {
+    "cable_type": "FO-144",
+    "cables": 1,
+    "length_m": 523,
+    "near_poles": 14,
+    "unique_length_m": 0
+   },
+   {
+    "cable_type": "não informado",
+    "cables": 1,
+    "length_m": 568,
+    "near_poles": 0,
+    "unique_length_m": 568
+   }
+  ],
+  "cables": [
+   {
+    "cable_type": "FO-12",
+    "folder": "Backbone",
+    "length_m": 3139.5,
+    "name": "FO-12 Backbone",
+    "near_poles": 38,
+    "near_poles_5m": 37,
+    "no_pole_m": 1589,
+    "unique_length_m": 3139.5
+   },
+   {
+    "cable_type": "FO-06",
+    "folder": "Ramais",
+    "length_m": 731.9,
+    "name": "FO-06 Duplicate",
+    "near_poles": 19,
+    "near_poles_5m": 18,
+    "no_pole_m": 0,
+    "unique_length_m": 0.0
+   },
+   {
+    "cable_type": "FO-144",
+    "folder": "Ramais",
+    "length_m": 522.8,
+    "name": "FO-144 Parallel",
+    "near_poles": 14,
+    "near_poles_5m": 13,
+    "no_pole_m": 0,
+    "unique_length_m": 0.0
+   },
+   {
+    "cable_type": "não informado",
+    "folder": "Ramais",
+    "length_m": 567.7,
+    "name": "Loose cable",
+    "near_poles": 0,
+    "near_poles_5m": 0,
+    "no_pole_m": 568,
+    "unique_length_m": 567.7
+   },
+   {
+    "cable_type": "FO-48",
+    "folder": "Multi",
+    "length_m": 627.3,
+    "name": "FO-48 Multi",
+    "near_poles": 3,
+    "near_poles_5m": 3,
+    "no_pole_m": 502,
+    "unique_length_m": 627.3
+   },
+   {
+    "cable_type": "FO-24",
+    "folder": "Multi",
+    "length_m": 1045.6,
+    "name": "F0-24 Letter zero",
+    "near_poles": 0,
+    "near_poles_5m": 0,
+    "no_pole_m": 1046,
+    "unique_length_m": 1045.6
+   }
+  ],
+  "city": "Divinópolis",
+  "city_poles": 48,
+  "code": "DATE_3122306_plain",
+  "ibge_code": "3122306",
+  "kmz": {
+   "all_poles_kmz": null,
+   "overlap_kmz": null,
+   "poles_kmz": {
+    "length": 7006,
+    "sha256": "4dab7173a07790d526837a51b91e7eb9113390038f56f3d0f15c5c337ed447ee"
+   },
+   "with_overlap_kmz": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>Cabos com sobreposição - Divinópolis</name><description>Metragem com sobreposição: 6.636 m. Cada cabo aparece inteiro, mesmo onde se sobrepõe a outro. Um trecho é sobreposição quando passa a até 4 m de um cabo que vem antes no KMZ de rotas, ou corre paralelo a ele a até 15 m preso ao mesmo poste.</description><Style id=\"cable\"><LineStyle><color>ff0080ff</color><width>3</width></LineStyle></Style><Placemark><name>FO-12 Backbone</name><description>3139.5 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8950000,-20.1400000,0 -44.8700000,-20.1400000,0 -44.8650000,-20.1405000,0</coordinates></LineString></Placemark><Placemark><name>FO-06 Duplicate</name><description>731.9 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8930000,-20.1400000,0 -44.8860000,-20.1400000,0</coordinates></LineString></Placemark><Placemark><name>FO-144 Parallel</name><description>522.8 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8920000,-20.1399300,0 -44.8870000,-20.1399300,0</coordinates></LineString></Placemark><Placemark><name>Loose cable</name><description>567.7 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8700000,-20.1360000,0 -44.8650000,-20.1380000,0</coordinates></LineString></Placemark><Placemark><name>FO-48 Multi</name><description>627.3 m</description><styleUrl>#cable</styleUrl><MultiGeometry><LineString><tessellate>1</tessellate><coordinates>-44.8990000,-20.1450000,0 -44.8960000,-20.1450000,0</coordinates></LineString><LineString><tessellate>1</tessellate><coordinates>-44.8990000,-20.1435000,0 -44.8960000,-20.1435000,0</coordinates></LineString></MultiGeometry></Placemark><Placemark><name>F0-24 Letter zero</name><description>1045.6 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8720000,-20.1330000,0 -44.8620000,-20.1330000,0</coordinates></LineString></Placemark></Document></kml>",
+   "without_overlap_kmz": {
+    "length": 142791,
+    "sha256": "0ada24eac96fbf77eafcde6b39c8a882489922d77658e1721fe4b3ff73e32d0a"
+   }
+  },
+  "near_poles": 41,
+  "near_poles_pct": 85.4,
+  "poles_base": "BDGD Cemig-D 2025-12-31",
+  "radius_m": 40.0,
+  "route_length_m": 5380,
+  "routes_file": "plain.kml"
+ },
+ "split_full": [
+  {
+   "analysis_date": "DATE",
+   "avg_span_m": 40.9,
+   "cable_types": [
+    {
+     "cable_type": "FO-06",
+     "cables": 1,
+     "length_m": 732,
+     "near_poles": 19,
+     "unique_length_m": 0
+    },
+    {
+     "cable_type": "FO-12",
+     "cables": 1,
+     "length_m": 1568,
+     "near_poles": 38,
+     "unique_length_m": 1568
+    },
+    {
+     "cable_type": "FO-48",
+     "cables": 1,
+     "length_m": 627,
+     "near_poles": 3,
+     "unique_length_m": 627
+    },
+    {
+     "cable_type": "FO-144",
+     "cables": 1,
+     "length_m": 523,
+     "near_poles": 14,
+     "unique_length_m": 0
+    }
+   ],
+   "cables": [
+    {
+     "cable_type": "FO-12",
+     "folder": "Backbone",
+     "length_m": 1568.3,
+     "name": "FO-12 Backbone",
+     "near_poles": 38,
+     "near_poles_5m": 37,
+     "no_pole_m": 17,
+     "unique_length_m": 1568.3
+    },
+    {
+     "cable_type": "FO-06",
+     "folder": "Ramais",
+     "length_m": 731.9,
+     "name": "FO-06 Duplicate",
+     "near_poles": 19,
+     "near_poles_5m": 18,
+     "no_pole_m": 0,
+     "unique_length_m": 0.0
+    },
+    {
+     "cable_type": "FO-144",
+     "folder": "Ramais",
+     "length_m": 522.8,
+     "name": "FO-144 Parallel",
+     "near_poles": 14,
+     "near_poles_5m": 13,
+     "no_pole_m": 0,
+     "unique_length_m": 0.0
+    },
+    {
+     "cable_type": "FO-48",
+     "folder": "Multi",
+     "length_m": 627.3,
+     "name": "FO-48 Multi",
+     "near_poles": 3,
+     "near_poles_5m": 3,
+     "no_pole_m": 502,
+     "unique_length_m": 627.3
+    }
+   ],
+   "city": "Divinópolis",
+   "city_poles": 48,
+   "code": "DATE_3122306_backbone_bh",
+   "ibge_code": "3122306",
+   "kmz": {
+    "all_poles_kmz": {
+     "length": 7182,
+     "sha256": "deb59ed8a1f81aabe362d5a3a533153ddca4f2707b3224b5ed7503ed99731265"
+    },
+    "overlap_kmz": {
+     "length": 92960,
+     "sha256": "7defb723f02f613050e5bef68bf55b4551055c32c5e94bca76b13c9bfd511536"
+    },
+    "poles_kmz": {
+     "length": 7006,
+     "sha256": "7e4f7d4f840242c9f72c0d311a0d1cc574a1529235a6275984318e56edb0e40e"
+    },
+    "with_overlap_kmz": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>Cabos com sobreposição - Divinópolis</name><description>Metragem com sobreposição: 3.450 m. Cada cabo aparece inteiro, mesmo onde se sobrepõe a outro. Um trecho é sobreposição quando passa a até 4 m de um cabo que vem antes no KMZ de rotas, ou corre paralelo a ele a até 15 m preso ao mesmo poste.</description><Style id=\"cable\"><LineStyle><color>ff0080ff</color><width>3</width></LineStyle></Style><Placemark><name>FO-12 Backbone</name><description>1568.3 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8950000,-20.1400000,0 -44.8800000,-20.1400000,0</coordinates></LineString></Placemark><Placemark><name>FO-06 Duplicate</name><description>731.9 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8930000,-20.1400000,0 -44.8860000,-20.1400000,0</coordinates></LineString></Placemark><Placemark><name>FO-144 Parallel</name><description>522.8 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8920000,-20.1399300,0 -44.8870000,-20.1399300,0</coordinates></LineString></Placemark><Placemark><name>FO-48 Multi</name><description>627.3 m</description><styleUrl>#cable</styleUrl><MultiGeometry><LineString><tessellate>1</tessellate><coordinates>-44.8990000,-20.1450000,0 -44.8960000,-20.1450000,0</coordinates></LineString><LineString><tessellate>1</tessellate><coordinates>-44.8990000,-20.1435000,0 -44.8960000,-20.1435000,0</coordinates></LineString></MultiGeometry></Placemark></Document></kml>",
+    "without_overlap_kmz": {
+     "length": 59524,
+     "sha256": "400f42880b99cdd06f4f8227dc39281ea77684e6af5ad319e07063ed72ced03b"
+    }
+   },
+   "near_poles": 41,
+   "near_poles_pct": 85.4,
+   "poles_base": "BDGD Cemig-D 2025-12-31",
+   "radius_m": 25.0,
+   "route_length_m": 2196,
+   "routes_file": "backbone_bh.kmz"
+  },
+  {
+   "analysis_date": "DATE",
+   "avg_span_m": 41.3,
+   "cable_types": [
+    {
+     "cable_type": "FO-12",
+     "cables": 1,
+     "length_m": 1571,
+     "near_poles": 30,
+     "unique_length_m": 1571
+    },
+    {
+     "cable_type": "FO-24",
+     "cables": 1,
+     "length_m": 1046,
+     "near_poles": 3,
+     "unique_length_m": 1046
+    },
+    {
+     "cable_type": "não informado",
+     "cables": 1,
+     "length_m": 568,
+     "near_poles": 0,
+     "unique_length_m": 568
+    }
+   ],
+   "cables": [
+    {
+     "cable_type": "FO-12",
+     "folder": "Backbone",
+     "length_m": 1571.2,
+     "name": "FO-12 Backbone",
+     "near_poles": 30,
+     "near_poles_5m": 26,
+     "no_pole_m": 356,
+     "unique_length_m": 1571.2
+    },
+    {
+     "cable_type": "não informado",
+     "folder": "Ramais",
+     "length_m": 567.7,
+     "name": "Loose cable",
+     "near_poles": 0,
+     "near_poles_5m": 0,
+     "no_pole_m": 568,
+     "unique_length_m": 567.7
+    },
+    {
+     "cable_type": "FO-24",
+     "folder": "Multi",
+     "length_m": 1045.6,
+     "name": "F0-24 Letter zero",
+     "near_poles": 3,
+     "near_poles_5m": 3,
+     "no_pole_m": 898,
+     "unique_length_m": 1045.6
+    }
+   ],
+   "city": "Itaúna",
+   "city_poles": 54,
+   "code": "DATE_3132404_backbone_bh",
+   "ibge_code": "3132404",
+   "kmz": {
+    "all_poles_kmz": {
+     "length": 8023,
+     "sha256": "23135cfe68e3fb5d6bcd4c83bf342fb14a1e0a346de16837e19b4c4a72b8a7d4"
+    },
+    "overlap_kmz": {
+     "length": 86742,
+     "sha256": "4129cdd2e1db05933efd1ccdec0d4a9623b4d23692659663b3d7df4e3608a8b4"
+    },
+    "poles_kmz": {
+     "length": 5771,
+     "sha256": "87c1034b01410c213578ad498c48f6b45cb7434c86715cb56432b29a07ecc9d6"
+    },
+    "with_overlap_kmz": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>Cabos com sobreposição - Itaúna</name><description>Metragem com sobreposição: 3.185 m. Cada cabo aparece inteiro, mesmo onde se sobrepõe a outro. Um trecho é sobreposição quando passa a até 4 m de um cabo que vem antes no KMZ de rotas, ou corre paralelo a ele a até 15 m preso ao mesmo poste.</description><Style id=\"cable\"><LineStyle><color>ff0080ff</color><width>3</width></LineStyle></Style><Placemark><name>FO-12 Backbone</name><description>1571.2 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8800000,-20.1400000,0 -44.8700000,-20.1400000,0 -44.8650000,-20.1405000,0</coordinates></LineString></Placemark><Placemark><name>Loose cable</name><description>567.7 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8700000,-20.1360000,0 -44.8650000,-20.1380000,0</coordinates></LineString></Placemark><Placemark><name>F0-24 Letter zero</name><description>1045.6 m</description><styleUrl>#cable</styleUrl><LineString><tessellate>1</tessellate><coordinates>-44.8720000,-20.1330000,0 -44.8620000,-20.1330000,0</coordinates></LineString></Placemark></Document></kml>",
+    "without_overlap_kmz": {
+     "length": 86362,
+     "sha256": "d881d27c51ce8e2fc16aa51ad42f053ea137bf191d0357fba77b42e7ae7288bf"
+    }
+   },
+   "near_poles": 33,
+   "near_poles_pct": 61.1,
+   "poles_base": "BDGD Cemig-D 2025-12-31 + BDGD DME",
+   "radius_m": 25.0,
+   "route_length_m": 3185,
+   "routes_file": "backbone_bh.kmz"
+  }
+ ],
+ "split_plain": [
+  {
+   "analysis_date": "DATE",
+   "avg_span_m": 40.9,
+   "cable_types": [
+    {
+     "cable_type": "FO-06",
+     "cables": 1,
+     "length_m": 732,
+     "near_poles": 19,
+     "unique_length_m": 0
+    },
+    {
+     "cable_type": "FO-12",
+     "cables": 1,
+     "length_m": 1568,
+     "near_poles": 38,
+     "unique_length_m": 1568
+    },
+    {
+     "cable_type": "FO-48",
+     "cables": 1,
+     "length_m": 627,
+     "near_poles": 3,
+     "unique_length_m": 627
+    },
+    {
+     "cable_type": "FO-144",
+     "cables": 1,
+     "length_m": 523,
+     "near_poles": 14,
+     "unique_length_m": 0
+    }
+   ],
+   "cables": [
+    {
+     "cable_type": "FO-12",
+     "folder": "Backbone",
+     "length_m": 1568.3,
+     "name": "FO-12 Backbone",
+     "near_poles": 38,
+     "near_poles_5m": 37,
+     "no_pole_m": 17,
+     "unique_length_m": 1568.3
+    },
+    {
+     "cable_type": "FO-06",
+     "folder": "Ramais",
+     "length_m": 731.9,
+     "name": "FO-06 Duplicate",
+     "near_poles": 19,
+     "near_poles_5m": 18,
+     "no_pole_m": 0,
+     "unique_length_m": 0.0
+    },
+    {
+     "cable_type": "FO-144",
+     "folder": "Ramais",
+     "length_m": 522.8,
+     "name": "FO-144 Parallel",
+     "near_poles": 14,
+     "near_poles_5m": 13,
+     "no_pole_m": 0,
+     "unique_length_m": 0.0
+    },
+    {
+     "cable_type": "FO-48",
+     "folder": "Multi",
+     "length_m": 627.3,
+     "name": "FO-48 Multi",
+     "near_poles": 3,
+     "near_poles_5m": 3,
+     "no_pole_m": 502,
+     "unique_length_m": 627.3
+    }
+   ],
+   "city": "Divinópolis",
+   "city_poles": 48,
+   "code": "DATE_3122306_backbone_bh",
+   "ibge_code": "3122306",
+   "kmz": {
+    "all_poles_kmz": null,
+    "overlap_kmz": null,
+    "poles_kmz": {
+     "length": 7006,
+     "sha256": "7e4f7d4f840242c9f72c0d311a0d1cc574a1529235a6275984318e56edb0e40e"
+    },
+    "with_overlap_kmz": null,
+    "without_overlap_kmz": null
+   },
+   "near_poles": 41,
+   "near_poles_pct": 85.4,
+   "poles_base": "BDGD Cemig-D 2025-12-31",
+   "radius_m": 25.0,
+   "route_length_m": 2196,
+   "routes_file": "backbone_bh.kmz"
+  },
+  {
+   "analysis_date": "DATE",
+   "avg_span_m": 41.3,
+   "cable_types": [
+    {
+     "cable_type": "FO-12",
+     "cables": 1,
+     "length_m": 1571,
+     "near_poles": 30,
+     "unique_length_m": 1571
+    },
+    {
+     "cable_type": "FO-24",
+     "cables": 1,
+     "length_m": 1046,
+     "near_poles": 3,
+     "unique_length_m": 1046
+    },
+    {
+     "cable_type": "não informado",
+     "cables": 1,
+     "length_m": 568,
+     "near_poles": 0,
+     "unique_length_m": 568
+    }
+   ],
+   "cables": [
+    {
+     "cable_type": "FO-12",
+     "folder": "Backbone",
+     "length_m": 1571.2,
+     "name": "FO-12 Backbone",
+     "near_poles": 30,
+     "near_poles_5m": 26,
+     "no_pole_m": 356,
+     "unique_length_m": 1571.2
+    },
+    {
+     "cable_type": "não informado",
+     "folder": "Ramais",
+     "length_m": 567.7,
+     "name": "Loose cable",
+     "near_poles": 0,
+     "near_poles_5m": 0,
+     "no_pole_m": 568,
+     "unique_length_m": 567.7
+    },
+    {
+     "cable_type": "FO-24",
+     "folder": "Multi",
+     "length_m": 1045.6,
+     "name": "F0-24 Letter zero",
+     "near_poles": 3,
+     "near_poles_5m": 3,
+     "no_pole_m": 898,
+     "unique_length_m": 1045.6
+    }
+   ],
+   "city": "Itaúna",
+   "city_poles": 54,
+   "code": "DATE_3132404_backbone_bh",
+   "ibge_code": "3132404",
+   "kmz": {
+    "all_poles_kmz": null,
+    "overlap_kmz": null,
+    "poles_kmz": {
+     "length": 5771,
+     "sha256": "87c1034b01410c213578ad498c48f6b45cb7434c86715cb56432b29a07ecc9d6"
+    },
+    "with_overlap_kmz": null,
+    "without_overlap_kmz": null
+   },
+   "near_poles": 33,
+   "near_poles_pct": 61.1,
+   "poles_base": "BDGD Cemig-D 2025-12-31 + BDGD DME",
+   "radius_m": 25.0,
+   "route_length_m": 3185,
+   "routes_file": "backbone_bh.kmz"
+  }
+ ]
+}

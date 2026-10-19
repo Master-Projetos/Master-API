@@ -26,7 +26,9 @@ build-backend = 'hatchling.build'
 [dependency-groups]
 dev = [
     'ruff (>=0.16.8,<0.17.0)',
-    'taskipy (>=1.14.1,<2.0.0)'
+    'taskipy (>=1.14.1,<2.0.0)',
+    "pytest (>=9.1.1,<10.0.0)",
+    "aiosqlite (>=0.22.1,<0.23.0)"
 ]
 # Only for scripts/gerar_base_postes.py (reads the BDGD File Geodatabase);
 # the API doesn't need it: poetry install --with postes
@@ -48,6 +50,10 @@ dev = 'fastapi dev'
 lint = 'ruff check .'
 format = 'ruff format .'
 pos_format = 'ruff check . --fix'
+
+[tool.pytest.ini_options]
+testpaths = ['tests']
+pythonpath = ['.']
 
 [tool.ruff]
 line-length = 79

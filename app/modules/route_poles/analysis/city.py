@@ -3,6 +3,7 @@
 import json
 import logging
 import unicodedata
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from ..constants import STATES
@@ -29,17 +30,18 @@ GEODATA_BR_URL = (
     'https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson'
     '/geojs-{state}-mun.json'
 )
-CITY_MESH_SOURCE = 'IBGE malha municipal (qualidade máxima)'
+CITY_MESH_LABEL = 'IBGE city mesh (maximum quality)'
+# In order of preference
 STATE_MESH_SOURCES = (
-    (IBGE_STATE_MESH_URL, 'IBGE malha estadual (qualidade intermediária)'),
-    (GEODATA_BR_URL, 'geodata-br (IBGE simplificado)'),
+    (IBGE_STATE_MESH_URL, 'IBGE state mesh (intermediate quality)'),
+    (GEODATA_BR_URL, 'geodata-br (simplified IBGE)'),
 )
 
 # Route vertices sampled to find the city the routes are in
 DETECTION_SAMPLE = 400
 # Route vertices sampled to find every city the routes pass through
-MULTI_DETECTION_SAMPLE = 5000
-IBGE_CODE_HINT = 'Informe o código IBGE (ibge_code).'
+ALL_CITIES_SAMPLE = 5000
+IBGE_CODE_HINT = 'Provide the IBGE code (ibge_code).'
 
 
 class Area:
@@ -73,7 +75,6 @@ class City:
     code: str
     name: str
     area: Area
-    boundary_source: str
 
 
 def _in_ring(x: float, y: float, ring) -> bool:
@@ -136,6 +137,10 @@ def _states_label(states) -> str:
     return '/'.join(STATES.get(s, f'UF {s}') for s in states)
 
 
+def _describe(error: Exception) -> str:
+    return f'{type(error).__name__}: {error}'
+
+
 def _city_names(state: str) -> dict[str, str]:
     """IBGE code -> name of the cities of a state; {} when IBGE fails."""
     try:
@@ -144,6 +149,63 @@ def _city_names(state: str) -> dict[str, str]:
         logger.warning('IBGE city list of state %s unavailable', state)
         return {}
     return {str(c['id']): c['nome'] for c in cities}
+
+
+def _code_by_name(name: str, names: dict[str, str], incomplete: bool) -> str:
+    wanted = _plain(name)
+    found = [code for code, n in names.items() if _plain(n) == wanted]
+    if not found and incomplete:
+        raise SourceError(
+            f"The IBGE city list did not answer, so '{name}' can't be found "
+            'by name. Try again or provide the IBGE code (ibge_code).'
+        )
+    if not found:
+        raise AnalysisError(
+            f"City '{name}' not found in {_states_label(STATES)}. "
+            + IBGE_CODE_HINT
+        )
+    if len(found) > 1:
+        options = ', '.join(f'{_states_label([c[:2]])}: {c}' for c in found)
+        raise AnalysisError(
+            f"There is more than one city '{name}' ({options}). "
+            + IBGE_CODE_HINT
+        )
+    return found[0]
+
+
+def _city_mesh(code: str) -> Area:
+    geojson = json.loads(fetch(IBGE_CITY_MESH_URL.format(code=code)))
+    feature = (
+        geojson['features'][0]
+        if geojson.get('type') == 'FeatureCollection'
+        else geojson
+    )
+    return Area(_polygons(feature.get('geometry', feature)))
+
+
+def _best_mesh_city(code: str, name: str, failures: list[str]) -> City | None:
+    """The city with its best quality boundary; None when IBGE fails."""
+    try:
+        return City(code, name, _city_mesh(code))
+    except Exception as error:
+        failures.append(f'{CITY_MESH_LABEL}: {_describe(error)}')
+        logger.warning('IBGE city mesh of %s unavailable: %s', code, error)
+        return None
+
+
+def _state_meshes(
+    state: str, failures: list[str]
+) -> Iterator[tuple[list, str]]:
+    """(city features, label) of each source that answers for the state."""
+    for url, source in STATE_MESH_SOURCES:
+        label = f'{source} {_states_label([state])}'
+        try:
+            features = json.loads(fetch(url.format(state=state)))['features']
+        except Exception as error:
+            failures.append(f'{label}: {_describe(error)}')
+            logger.warning('%s unavailable: %s', label, error)
+            continue
+        yield features, label
 
 
 def _most_points(
@@ -160,35 +222,47 @@ def _most_points(
     return best, best_count, len(sample)
 
 
-def _code_by_name(name: str, names: dict[str, str], incomplete: bool) -> str:
-    wanted = _plain(name)
-    found = [code for code, n in names.items() if _plain(n) == wanted]
-    if not found and incomplete:
-        raise SourceError(
-            'A lista de municípios do IBGE não respondeu; não dá para achar '
-            f"'{name}' pelo nome. Tente de novo ou {IBGE_CODE_HINT.lower()}"
-        )
-    if not found:
+def _feature_by_code(code: str, failures: list[str]) -> dict | None:
+    for features, label in _state_meshes(code[:2], failures):
+        for feature in features:
+            if _feature_code(feature.get('properties') or {}) == code:
+                return feature
+        failures.append(f'{label}: city {code} is not in the mesh')
+    return None
+
+
+def _feature_by_routes(
+    states: list[str], points: list[LonLat], failures: list[str]
+) -> dict:
+    """The city with most route vertices. The next state is tried only when
+    most of the route is outside the best city of the current one.
+    """
+    best: tuple[int, dict] | None = None
+    for state in states:
+        sample = 0
+        for features, _ in _state_meshes(state, failures):
+            feature, inside, sample = _most_points(features, points)
+            if best is None or inside > best[0]:
+                best = (inside, feature)
+            break
+        if best and 2 * best[0] > sample:
+            break
+    if best is None:
+        raise _boundary_error(failures)
+    if best[0] == 0:
         raise AnalysisError(
-            f"Município '{name}' não encontrado em {_states_label(STATES)}. "
+            f'The routes are not inside any city of {_states_label(STATES)}. '
             + IBGE_CODE_HINT
         )
-    if len(found) > 1:
-        options = ', '.join(f'{_states_label([c[:2]])}: {c}' for c in found)
-        raise AnalysisError(
-            f"Há mais de um município '{name}' ({options}). " + IBGE_CODE_HINT
-        )
-    return found[0]
+    return best[1]
 
 
-def _city_mesh(code: str) -> Area:
-    geojson = json.loads(fetch(IBGE_CITY_MESH_URL.format(code=code)))
-    feature = (
-        geojson['features'][0]
-        if geojson.get('type') == 'FeatureCollection'
-        else geojson
+def _boundary_error(failures: list[str]) -> SourceError:
+    return SourceError(
+        'Could not get the city boundary from any source ('
+        + '; '.join(failures)
+        + ').'
     )
-    return Area(_polygons(feature.get('geometry', feature)))
 
 
 def find_city(
@@ -201,7 +275,8 @@ def find_city(
     """
     # A city code starts with its state code
     states = [code[:2]] if code else list(STATES)
-    names, incomplete = {}, False
+    names: dict[str, str] = {}
+    incomplete = False
     for state in states:
         state_names = _city_names(state)
         names.update(state_names)
@@ -210,65 +285,17 @@ def find_city(
         code = _code_by_name(name, names, incomplete)
         states = [code[:2]]
 
-    failures = []
+    failures: list[str] = []
     if code:
-        try:
-            return City(
-                code,
-                names.get(code, name or code),
-                _city_mesh(code),
-                CITY_MESH_SOURCE,
-            )
-        except Exception as error:
-            failures.append(f'IBGE malha municipal: {_describe(error)}')
-            logger.warning('IBGE city mesh unavailable: %s', error)
+        city = _best_mesh_city(code, names.get(code, name or code), failures)
+        if city:
+            return city
+        feature = _feature_by_code(code, failures)
+        if feature is None:
+            raise _boundary_error(failures)
+    else:
+        feature = _feature_by_routes(states, points, failures)
 
-    # (route vertices inside, feature, source) of the best city found
-    chosen = None
-    for state in states:
-        sample = 0
-        for url, source in STATE_MESH_SOURCES:
-            label = f'{source} {_states_label([state])}'
-            try:
-                features = json.loads(fetch(url.format(state=state)))[
-                    'features'
-                ]
-            except Exception as error:
-                failures.append(f'{label}: {_describe(error)}')
-                logger.warning('%s unavailable: %s', label, error)
-                continue
-            if code:
-                feature = next(
-                    (
-                        f
-                        for f in features
-                        if _feature_code(f.get('properties') or {}) == code
-                    ),
-                    None,
-                )
-                if feature is None:
-                    failures.append(
-                        f'{label}: município {code} não está na malha'
-                    )
-                    continue
-                inside = 0
-            else:
-                feature, inside, sample = _most_points(features, points)
-            if chosen is None or inside > chosen[0]:
-                chosen = (inside, feature, source)
-            break
-        # By the routes, the next state is tried only when most of the route
-        # is outside the best city of this one
-        if chosen and (code or 2 * chosen[0] > sample):
-            break
-    if chosen is None:
-        raise SourceError(
-            'Não consegui o limite do município em nenhuma fonte ('
-            + '; '.join(failures)
-            + ').'
-        )
-
-    _, feature, source = chosen
     props = feature.get('properties') or {}
     found_code = _feature_code(props)
     found_name = names.get(found_code) or _feature_name(props) or found_code
@@ -276,36 +303,14 @@ def find_city(
         logger.info(
             'city detected by the routes: %s (%s)', found_name, found_code
         )
-        # Prefer the best quality boundary of the detected city
-        try:
-            return City(
-                found_code,
-                found_name,
-                _city_mesh(found_code),
-                CITY_MESH_SOURCE,
-            )
-        except Exception:
-            logger.warning('IBGE city mesh of %s unavailable', found_code)
-    return City(
-        found_code, found_name, Area(_polygons(feature['geometry'])), source
-    )
+        city = _best_mesh_city(found_code, found_name, failures)
+        if city:
+            return city
+    return City(found_code, found_name, Area(_polygons(feature['geometry'])))
 
 
 def _boxes_overlap(a: tuple, b: tuple) -> bool:
     return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
-
-
-def _state_features(state: str, failures: list[str]) -> tuple[list, str]:
-    """(city features of the state mesh, source); ([], '') when all fail."""
-    for url, source in STATE_MESH_SOURCES:
-        label = f'{source} {_states_label([state])}'
-        try:
-            geojson = json.loads(fetch(url.format(state=state)))
-            return geojson['features'], source
-        except Exception as error:
-            failures.append(f'{label}: {_describe(error)}')
-            logger.warning('%s unavailable: %s', label, error)
-    return [], ''
 
 
 def find_cities(points: list[LonLat]) -> list[City]:
@@ -313,7 +318,7 @@ def find_cities(points: list[LonLat]) -> list[City]:
 
     Raises AnalysisError (route outside MG/SP) or SourceError (IBGE down).
     """
-    sample = points[:: max(1, len(points) // MULTI_DETECTION_SAMPLE)]
+    sample = points[:: max(1, len(points) // ALL_CITIES_SAMPLE)]
     route_box = (
         min(p[0] for p in sample),
         min(p[1] for p in sample),
@@ -322,53 +327,41 @@ def find_cities(points: list[LonLat]) -> list[City]:
     )
     names: dict[str, str] = {}
     failures: list[str] = []
-    # (vertices inside, code, state mesh area, source)
-    found = []
+    # (vertices inside, code, state mesh area)
+    found: list[tuple[int, str, Area]] = []
     remaining = sample
     for state in STATES:
         names.update(_city_names(state))
-        features, source = _state_features(state, failures)
-        if not features:
+        mesh = next(_state_meshes(state, failures), None)
+        if mesh is None:
             # A missing state could hide some of the cities
             raise SourceError(
-                'Não consegui o limite dos municípios de '
+                'Could not get the city boundaries of '
                 f'{_states_label([state])} (' + '; '.join(failures) + ').'
             )
-        for feature in features:
+        for feature in mesh[0]:
             area = Area(_polygons(feature['geometry']))
             if not _boxes_overlap(area.bbox, route_box):
                 continue
             outside = [p for p in remaining if not area.contains(*p)]
             if len(outside) < len(remaining):
                 code = _feature_code(feature.get('properties') or {})
-                found.append((
-                    len(remaining) - len(outside),
-                    code,
-                    area,
-                    source,
-                ))
+                found.append((len(remaining) - len(outside), code, area))
                 remaining = outside
     if not found:
         raise AnalysisError(
-            'As rotas não passam por nenhum município de '
+            'The routes do not pass through any city of '
             f'{_states_label(STATES)}.'
         )
 
     cities = []
-    for inside, code, area, source in sorted(found, key=lambda f: -f[0]):
+    for _, code, area in sorted(found, key=lambda f: -f[0]):
         name = names.get(code) or code
-        # Prefer the best quality boundary of each city
-        try:
-            cities.append(City(code, name, _city_mesh(code), CITY_MESH_SOURCE))
-        except Exception:
-            logger.warning('IBGE city mesh of %s unavailable', code)
-            cities.append(City(code, name, area, source))
+        cities.append(
+            _best_mesh_city(code, name, failures) or City(code, name, area)
+        )
     logger.info(
         'cities detected by the routes: %s',
         ', '.join(f'{c.name} ({c.code})' for c in cities),
     )
     return cities
-
-
-def _describe(error: Exception) -> str:
-    return f'{type(error).__name__}: {error}'

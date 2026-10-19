@@ -1,10 +1,11 @@
 import io
 import zipfile
 from collections import defaultdict
+from enum import StrEnum
 from xml.sax.saxutils import escape
 
-from ..constants import DUPLICATE_M, NO_POLE_M, PARALLEL_M
-from .engine import Stretch, StretchStatus
+from ..constants import CLOSE_POLE_M, DUPLICATE_M, NO_POLE_M, PARALLEL_M
+from .engine import RouteResult, Stretch, StretchStatus
 from .routes import Cable
 
 KML_HEADER = (
@@ -25,6 +26,24 @@ WITHOUT_OVERLAP_COLOR = 'ff00c000'
 # (folder, KML color aabbggrr, [(lon, lat, description), ...])
 PointGroup = tuple[str, str, list[tuple[float, float, str]]]
 LonLat = tuple[float, float]
+
+
+class KmzKind(StrEnum):
+    """The KMZ files an analysis can have; the value is the download path.
+
+    Also the order of the summary.csv KMZ columns: new ones go at the end.
+    """
+
+    POLES = 'poles'
+    ALL_POLES = 'all-poles'
+    OVERLAP = 'overlap'
+    WITH_OVERLAP = 'with-overlap'
+    WITHOUT_OVERLAP = 'without-overlap'
+
+    @property
+    def attr(self) -> str:
+        """Name of the model column and of the data field."""
+        return f'{self.name.lower()}_kmz'
 
 
 def _zip(kml: str) -> bytes:
@@ -93,7 +112,37 @@ def _cables_kmz(
     )
 
 
-def with_overlap_kmz(title: str, cables: list[Cable], length_m: float) -> bytes:
+def near_poles_kmz(
+    city_name: str, poles: list[LonLat], result: RouteResult, radius_m: float
+) -> bytes:
+    close_m = min(CLOSE_POLE_M, radius_m)
+    distance = result.min_distance
+
+    def points(indexes: list[int]):
+        return [(*poles[i], f'{distance[i]:.1f} m do cabo') for i in indexes]
+
+    close = [i for i in result.near_poles if distance[i] <= close_m]
+    far = [i for i in result.near_poles if distance[i] > close_m]
+    groups = [(f'Até {close_m:g} m do cabo', 'ff00ff00', points(close))]
+    if far:
+        groups.append((
+            f'De {close_m:g} a {radius_m:g} m do cabo',
+            'ff00ffff',
+            points(far),
+        ))
+    return points_kmz(f'Postes utilizados - {city_name}', groups)
+
+
+def all_poles_kmz(city_name: str, poles: list[LonLat]) -> bytes:
+    points = [(lon, lat, '') for lon, lat in poles]
+    return points_kmz(
+        f'Postes - {city_name}', [('Postes do município', 'ffffffff', points)]
+    )
+
+
+def with_overlap_kmz(
+    title: str, cables: list[Cable], length_m: float
+) -> bytes:
     """Every cable whole: a shared stretch appears once per cable."""
     return _cables_kmz(
         title,

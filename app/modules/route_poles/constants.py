@@ -1,11 +1,8 @@
-"""Business rules of the v8 analysis. Explained in docs/v8-route-poles-codigo.md."""
+"""Business rules of the route poles analysis."""
 
 # Cables
 EXCLUDED_CABLE_PREFIXES = ('MIT', 'DROP', 'DRP')
-CABLE_TYPE_PREFIXES = {
-    'FO': 'FO',
-    'F0': 'FO'
-}
+CABLE_TYPE_PREFIXES = {'FO': 'FO', 'F0': 'FO'}
 UNKNOWN_CABLE_TYPE = 'não informado'
 
 # Overlap and poles

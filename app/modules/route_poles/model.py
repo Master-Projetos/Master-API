@@ -1,14 +1,112 @@
+from collections.abc import Iterable
 from datetime import date
-from enum import StrEnum
+from typing import NamedTuple
 from uuid import UUID
 
-from sqlalchemy import Date, ForeignKey, LargeBinary, String, Text
+from sqlalchemy import (
+    ColumnElement,
+    Date,
+    ForeignKey,
+    LargeBinary,
+    Select,
+    String,
+    Text,
+    UniqueConstraint,
+    select,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.modules.route_poles.analysis.kmz import KmzKind
+
+# Every kind but the first has a nullable column
+OPTIONAL_KMZ = tuple(kind for kind in KmzKind if kind != KmzKind.POLES)
 
 
-class RouteAnalysis(Base):
+class CityMetrics:
+    city: Mapped[str] = mapped_column(String(100))
+    ibge_code: Mapped[str] = mapped_column(String(10), index=True)
+    poles_base: Mapped[str] = mapped_column(String(100))
+    city_poles: Mapped[int]
+    near_poles: Mapped[int]
+    near_poles_pct: Mapped[float]
+    # Without overlapping cables
+    route_length_m: Mapped[int]
+    avg_span_m: Mapped[float]
+
+
+class KmzFiles:
+    # Deferred: only loaded by the download routes
+    poles_kmz: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
+    # Only with the "export all" option
+    all_poles_kmz: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
+    # Only with the overlap option: what counts and what is overlap
+    overlap_kmz: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
+    # Only with the overlap split option: the cables whole, and only what
+    # counts
+    with_overlap_kmz: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
+    without_overlap_kmz: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
+
+    @classmethod
+    def kmz_flags(cls) -> list[ColumnElement[bool]]:
+        """For each optional KMZ, whether it exists, without loading it."""
+        return [getattr(cls, kind.attr).is_not(None) for kind in OPTIONAL_KMZ]
+
+    @classmethod
+    def select_with_kmz_kinds(cls) -> Select:
+        return select(cls, *cls.kmz_flags())
+
+
+def kmz_kinds(flags: Iterable[bool]) -> frozenset[KmzKind]:
+    """The kinds of a row selected with the kmz_flags."""
+    return frozenset([
+        KmzKind.POLES,
+        *(kind for kind, has in zip(OPTIONAL_KMZ, flags) if has),
+    ])
+
+
+class StoredKmz(NamedTuple):
+    # Identifies the file in its download name
+    name: str
+    content: bytes
+
+
+class CableTypeColumns:
+    cable_type: Mapped[str] = mapped_column(String(50))
+    cables: Mapped[int]
+    # With overlap
+    length_m: Mapped[int]
+    near_poles: Mapped[int]
+
+
+class CableColumns:
+    folder: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    cable_type: Mapped[str] = mapped_column(String(50))
+    length_m: Mapped[float]
+    near_poles: Mapped[int]
+    near_poles_5m: Mapped[int]
+    # Stretch of the cable with no pole closer than NO_POLE_M
+    no_pole_m: Mapped[int]
+
+
+def ref_condition(model, ref: str) -> ColumnElement[bool]:
+    """A row is referenced by id (UUID) or by code."""
+    try:
+        return model.id == UUID(ref)
+    except ValueError:
+        return model.code == ref
+
+
+class RouteAnalysis(CityMetrics, KmzFiles, Base):
     """One analysis: a routes KMZ crossed with the pole bases."""
 
     __tablename__ = 'route_analyses'
@@ -16,36 +114,8 @@ class RouteAnalysis(Base):
     # '<date>_<ibge_code>_<routes file>'; sending it again replaces the row
     code: Mapped[str] = mapped_column(String(255), unique=True)
     analysis_date: Mapped[date] = mapped_column(Date, index=True)
-    city: Mapped[str] = mapped_column(String(100))
-    ibge_code: Mapped[str] = mapped_column(String(10), index=True)
     routes_file: Mapped[str] = mapped_column(String(255))
-    poles_base: Mapped[str] = mapped_column(String(100))
     radius_m: Mapped[float]
-
-    city_poles: Mapped[int]
-    near_poles: Mapped[int]
-    near_poles_pct: Mapped[float]
-    # Route length without overlapping cables
-    route_length_m: Mapped[int]
-    avg_span_m: Mapped[float]
-
-    # Deferred: only loaded by the download routes
-    poles_kmz: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
-    # Only when the script ran with --exportar-todos
-    all_poles_kmz: Mapped[bytes | None] = mapped_column(
-        LargeBinary, deferred=True
-    )
-    # Only with --kmz-sobreposicao: what counts and what is overlap
-    overlap_kmz: Mapped[bytes | None] = mapped_column(
-        LargeBinary, deferred=True
-    )
-    # Only with overlap_split_kmz: the cables whole, and only what counts
-    with_overlap_kmz: Mapped[bytes | None] = mapped_column(
-        LargeBinary, deferred=True
-    )
-    without_overlap_kmz: Mapped[bytes | None] = mapped_column(
-        LargeBinary, deferred=True
-    )
 
     cable_types: Mapped[list['RouteCableType']] = relationship(
         cascade='all, delete-orphan',
@@ -57,82 +127,80 @@ class RouteAnalysis(Base):
         passive_deletes=True,
         order_by='(RouteCable.folder, RouteCable.name)',
     )
-    # Only on multi-city analyses
-    cities: Mapped[list['RouteAnalysisCity']] = relationship(
-        cascade='all, delete-orphan',
-        passive_deletes=True,
-        order_by='RouteAnalysisCity.city',
-    )
 
 
-class KmzKind(StrEnum):
-    """The KMZ files an analysis can have; the value is the download path.
-
-    Also the order of the summary.csv KMZ columns: new ones go at the end.
-    """
-
-    POLES = 'poles'
-    ALL_POLES = 'all-poles'
-    OVERLAP = 'overlap'
-    WITH_OVERLAP = 'with-overlap'
-    WITHOUT_OVERLAP = 'without-overlap'
-
-    @property
-    def column(self):
-        return {
-            KmzKind.POLES: RouteAnalysis.poles_kmz,
-            KmzKind.ALL_POLES: RouteAnalysis.all_poles_kmz,
-            KmzKind.OVERLAP: RouteAnalysis.overlap_kmz,
-            KmzKind.WITH_OVERLAP: RouteAnalysis.with_overlap_kmz,
-            KmzKind.WITHOUT_OVERLAP: RouteAnalysis.without_overlap_kmz,
-        }[self]
-
-
-class RouteCableType(Base):
+class RouteCableType(CableTypeColumns, Base):
     __tablename__ = 'route_cable_types'
 
     analysis_id: Mapped[UUID] = mapped_column(
         ForeignKey('route_analyses.id', ondelete='CASCADE'), index=True
     )
-    cable_type: Mapped[str] = mapped_column(String(50))
-    cables: Mapped[int]
-    # With overlap
-    length_m: Mapped[int]
-    near_poles: Mapped[int]
     # Without overlap; null on analyses stored before it existed
     unique_length_m: Mapped[int | None]
 
 
-class RouteCable(Base):
+class RouteCable(CableColumns, Base):
     __tablename__ = 'route_cables'
 
     analysis_id: Mapped[UUID] = mapped_column(
         ForeignKey('route_analyses.id', ondelete='CASCADE'), index=True
     )
-    folder: Mapped[str] = mapped_column(Text)
-    name: Mapped[str] = mapped_column(Text)
-    cable_type: Mapped[str] = mapped_column(String(50))
-    length_m: Mapped[float]
-    near_poles: Mapped[int]
-    near_poles_5m: Mapped[int]
-    # Stretch of the cable with no pole closer than 25 m
-    no_pole_m: Mapped[int]
     # Length not shared with a cable that comes before it in the KMZ; null on
     # analyses stored before it existed
     unique_length_m: Mapped[float | None]
 
 
-class RouteAnalysisCity(Base):
-    """A city a multi-city analysis passes through."""
+class Backbone(Base):
+    """A backbone upload: one analysis per city it passes through."""
 
-    __tablename__ = 'route_analysis_cities'
+    __tablename__ = 'backbones'
 
-    analysis_id: Mapped[UUID] = mapped_column(
-        ForeignKey('route_analyses.id', ondelete='CASCADE'), index=True
+    # '<date>_<routes file>'; sending it again replaces the row
+    code: Mapped[str] = mapped_column(String(255), unique=True)
+    backbone_date: Mapped[date] = mapped_column(Date, index=True)
+    routes_file: Mapped[str] = mapped_column(String(255))
+    radius_m: Mapped[float]
+
+    cities: Mapped[list['BackboneCity']] = relationship(
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        order_by='BackboneCity.city',
     )
-    city: Mapped[str] = mapped_column(String(100))
-    ibge_code: Mapped[str] = mapped_column(String(10))
-    poles_base: Mapped[str] = mapped_column(String(100))
-    city_poles: Mapped[int]
-    near_poles: Mapped[int]
-    near_poles_pct: Mapped[float]
+
+
+class BackboneCity(CityMetrics, KmzFiles, Base):
+    __tablename__ = 'backbone_cities'
+    __table_args__ = (UniqueConstraint('backbone_id', 'ibge_code'),)
+
+    backbone_id: Mapped[UUID] = mapped_column(
+        ForeignKey('backbones.id', ondelete='CASCADE'), index=True
+    )
+
+    cable_types: Mapped[list['BackboneCableType']] = relationship(
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        order_by='BackboneCableType.cable_type',
+    )
+    cables: Mapped[list['BackboneCable']] = relationship(
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        order_by='(BackboneCable.folder, BackboneCable.name)',
+    )
+
+
+class BackboneCableType(CableTypeColumns, Base):
+    __tablename__ = 'backbone_cable_types'
+
+    backbone_city_id: Mapped[UUID] = mapped_column(
+        ForeignKey('backbone_cities.id', ondelete='CASCADE'), index=True
+    )
+    unique_length_m: Mapped[int]
+
+
+class BackboneCable(CableColumns, Base):
+    __tablename__ = 'backbone_cables'
+
+    backbone_city_id: Mapped[UUID] = mapped_column(
+        ForeignKey('backbone_cities.id', ondelete='CASCADE'), index=True
+    )
+    unique_length_m: Mapped[float]

@@ -1,0 +1,181 @@
+{
+ "backside_per_m": 0.25,
+ "cables": [
+  {
+   "folder": "Backbone",
+   "length_m": 3139.5492406387425,
+   "name": "FO-12 Backbone",
+   "near": {
+    "items": 68,
+    "sha256": "74bd3b2d485c551d543170a9b8c3fbcd62bcb936dc412737b91d5f42065abe87"
+   },
+   "no_pole_m": 355.7925404834971,
+   "type": "FO-12",
+   "unique_length_m": 3139.5492406386848
+  },
+  {
+   "folder": "Ramais",
+   "length_m": 731.8798067320735,
+   "name": "FO-06 Duplicate",
+   "near": {
+    "items": 19,
+    "sha256": "cb566bd7b1fc0eadf9b2629317d51247c89f52db9eca59d0764ec32e025448a3"
+   },
+   "no_pole_m": 0.0,
+   "type": "FO-06",
+   "unique_length_m": 0.0
+  },
+  {
+   "folder": "Ramais",
+   "length_m": 522.7715233900611,
+   "name": "FO-144 Parallel",
+   "near": {
+    "items": 14,
+    "sha256": "f09b46d178209534c3bb16a3728a7d6b3da8cafb50f5eef18398307ac2ca9f54"
+   },
+   "no_pole_m": 0.0,
+   "type": "FO-144",
+   "unique_length_m": 0.0
+  },
+  {
+   "folder": "Ramais",
+   "length_m": 567.7354414938412,
+   "name": "Loose cable",
+   "near": {
+    "items": 0,
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+   },
+   "no_pole_m": 567.7354414938421,
+   "type": "não informado",
+   "unique_length_m": 567.7354414938421
+  },
+  {
+   "folder": "Multi",
+   "length_m": 627.3085822349628,
+   "name": "FO-48 Multi",
+   "near": {
+    "items": 3,
+    "sha256": "cb18650f9bbac6ff16c6d4cfafd7c18d969444be6ba1736f9449325f3f021a81"
+   },
+   "no_pole_m": 502.4462051977427,
+   "type": "FO-48",
+   "unique_length_m": 627.3085822349599
+  },
+  {
+   "folder": "Multi",
+   "length_m": 1045.589142837583,
+   "name": "F0-24 Letter zero",
+   "near": {
+    "items": 3,
+    "sha256": "d9739c3484eb6a0f76373c387dc7baa9e4e8d6f2d66a5e81d893e3ca2bc283cf"
+   },
+   "no_pole_m": 897.6472755909502,
+   "type": "FO-24",
+   "unique_length_m": 1045.5891428375612
+  }
+ ],
+ "min_distance": {
+  "items": 74,
+  "sha256": "1f632a8b0c346b9e460f1599c5a7f8315e1031a3cf65065d6dbb65ada4781d8a"
+ },
+ "near_poles": [
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  44,
+  45,
+  46,
+  47,
+  48,
+  49,
+  50,
+  51,
+  52,
+  53,
+  54,
+  55,
+  56,
+  57,
+  58,
+  59,
+  60,
+  61,
+  62,
+  63,
+  64,
+  65,
+  66,
+  67,
+  68,
+  69,
+  81,
+  93,
+  94,
+  95,
+  96,
+  97
+ ],
+ "no_pole_m": 2323.621462766,
+ "stretches": {
+  "by_status": {
+   "contado": [
+    9,
+    3056.56094443909
+   ],
+   "sem_poste": [
+    12,
+    2323.6214627660574
+   ],
+   "sobreposto": [
+    2,
+    1254.651330122128
+   ]
+  },
+  "count": 23,
+  "points": {
+   "items": 23,
+   "sha256": "a724c8e09fcedd46d56e6b459c7537ef1582e9c5cfc7c87cd2b24716361ef638"
+  }
+ },
+ "total_m": 6634.833737327264,
+ "unique_m": 5380.182407205048
+}
