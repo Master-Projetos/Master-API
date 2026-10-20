@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from .modules.B2B.routers import router as b2b_router
-from .modules.stock.routers import router as stock_router
+from app.api.v2.modules.B2B.routers import router as b2b_router
+from app.api.v2.modules.stock.routers import router as stock_router
 
 v2_router = APIRouter()
 

@@ -13,11 +13,11 @@ def get_df():
     return pd.read_excel(BytesIO(response.content), sheet_name='licenciados', engine='openpyxl')
 
 
-def load_viability_poles(names: list = None, df: pd.DataFrame = get_df()) -> dict:
+def load_viability_poles(pole_owners: list | None = None, df: pd.DataFrame = get_df()) -> dict:
     treated_df = df.groupby('CONCESSIONARIA')[['MUNICIPIO', 'CODIGO IBGE', 'POSTES LICENCIADOS', 'VALOR']].apply(
-        lambda x : x.set_index('MUNICIPIO').to_dict(orient='index')
+        lambda pole_owner : pole_owner.set_index('MUNICIPIO').to_dict(orient='index')
     ).to_dict()
     
-    if names != None:
-        return treated_df[names]
+    if pole_owners is not None:
+        return {pole_owner.upper(): treated_df[pole_owner.upper()] for pole_owner in pole_owners}
     return treated_df

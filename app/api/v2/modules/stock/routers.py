@@ -7,7 +7,7 @@ from app.core.security import require_scope
 from app.modules.api_key.model import Scope
 from app.modules.stock.services import load_restock_schedule
 
-from .schemas import RestockSchedule
+from app.api.v2.modules.stock.schemas import RestockSchedule
 
 logger = logging.getLogger(__name__)
 
