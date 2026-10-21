@@ -2,7 +2,10 @@
 code before the v8 refactor.
 """
 
+import io
 import json
+import struct
+import tarfile
 
 import pytest
 
@@ -16,6 +19,11 @@ from app.modules.route_poles.analysis.city import (
 from app.modules.route_poles.analysis.clip import clip_lines
 from app.modules.route_poles.analysis.engine import analyze
 from app.modules.route_poles.analysis.errors import AnalysisError, SourceError
+from app.modules.route_poles.analysis.pole_base import (
+    lat_to_tile_y,
+    lon_to_tile_x,
+    read_poles,
+)
 from app.modules.route_poles.analysis.routes import read_cables
 from app.modules.route_poles.constants import DEFAULT_RADIUS_M
 from app.modules.route_poles.schemas import AnalysisOptions, RouteUploadOptions
@@ -304,9 +312,7 @@ def test_poles_in_cities_gives_a_shared_pole_to_the_first_city(
     assert city_a.area.contains(*shared)
     assert overlapping_b.area.contains(*shared)
 
-    in_a, in_b = city_poles_module.poles_in_cities(
-        [city_a, overlapping_b], VERTICES
-    )
+    in_a, in_b = city_poles_module.poles_in_cities([city_a, overlapping_b])
     assert shared in in_a.poles
     assert shared not in in_b.poles
 
@@ -314,6 +320,56 @@ def test_poles_in_cities_gives_a_shared_pole_to_the_first_city(
 def test_base_label_lists_only_bases_with_a_meaningful_share(
     pole_bases, city_a, city_b
 ):
-    in_a, in_b = city_poles_module.poles_in_cities([city_a, city_b], VERTICES)
+    in_a, in_b = city_poles_module.poles_in_cities([city_a, city_b])
     assert in_a.base_label == 'BDGD Cemig-D 2025-12-31'
     assert in_b.base_label == 'BDGD Cemig-D 2025-12-31 + BDGD DME'
+
+
+def tile_base(path, tiles: dict[tuple[int, int], int]):
+    """A pole base .tar.gz with n poles in each (tx, ty) tile."""
+    with tarfile.open(path, 'w:gz') as tar:
+        files = {'v1/manifest.json': b'{"data_base": "2025-12-31"}'}
+        for (tx, ty), n in tiles.items():
+            files[f'v1/{tx}/{ty}.bin'] = struct.pack('<HH', 100, 200) * n
+        for name, data in files.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return path
+
+
+def test_read_poles_decodes_only_the_tiles_crossing_the_boxes(tmp_path):
+    lon, lat = -44.88, -20.14
+    tx, ty = int(lon_to_tile_x(lon)), int(lat_to_tile_y(lat))
+    base = tile_base(
+        tmp_path / 'base.tar.gz',
+        {(tx, ty): 3, (tx + 5, ty): 7, (tx, ty + 5): 11},
+    )
+    tiles = []
+
+    manifest = read_poles(
+        base, [(lon, lat, lon, lat)], lambda poles: tiles.append(len(poles))
+    )
+
+    assert tiles == [3]
+    assert manifest == {'data_base': '2025-12-31'}
+
+
+def test_read_poles_reads_the_tiles_of_every_box(tmp_path):
+    first, second = (-44.88, -20.14), (-45.5, -19.5)
+    tiles_of = [
+        (int(lon_to_tile_x(lon)), int(lat_to_tile_y(lat)))
+        for lon, lat in (first, second)
+    ]
+    base = tile_base(
+        tmp_path / 'base.tar.gz', {tiles_of[0]: 2, tiles_of[1]: 4}
+    )
+    tiles = []
+
+    read_poles(
+        base,
+        [(*first, *first), (*second, *second)],
+        lambda poles: tiles.append(len(poles)),
+    )
+
+    assert sorted(tiles) == [2, 4]

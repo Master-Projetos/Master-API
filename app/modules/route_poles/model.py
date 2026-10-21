@@ -4,6 +4,7 @@ from typing import NamedTuple
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     ColumnElement,
     Date,
     ForeignKey,
@@ -65,6 +66,14 @@ class KmzFiles:
         return select(cls, *cls.kmz_flags())
 
 
+class CableLines:
+    # Deferred: only loaded to compare the city with the licensed poles. Null
+    # in the rows saved before it was kept
+    cable_lines: Mapped[bytes | None] = mapped_column(
+        LargeBinary, deferred=True
+    )
+
+
 def kmz_kinds(flags: Iterable[bool]) -> frozenset[KmzKind]:
     """The kinds of a row selected with the kmz_flags."""
     return frozenset([
@@ -106,7 +115,7 @@ def ref_condition(model, ref: str) -> ColumnElement[bool]:
         return model.code == ref
 
 
-class RouteAnalysis(CityMetrics, KmzFiles, Base):
+class RouteAnalysis(CityMetrics, KmzFiles, CableLines, Base):
     """One analysis: a routes KMZ crossed with the pole bases."""
 
     __tablename__ = 'route_analyses'
@@ -168,7 +177,7 @@ class Backbone(Base):
     )
 
 
-class BackboneCity(CityMetrics, KmzFiles, Base):
+class BackboneCity(CityMetrics, KmzFiles, CableLines, Base):
     __tablename__ = 'backbone_cities'
     __table_args__ = (UniqueConstraint('backbone_id', 'ibge_code'),)
 
@@ -186,6 +195,42 @@ class BackboneCity(CityMetrics, KmzFiles, Base):
         passive_deletes=True,
         order_by='(BackboneCable.folder, BackboneCable.name)',
     )
+
+
+class LicensedSet(Base):
+    """A file of licensed poles. Only the markers are stored: what they are
+    compared with is whatever analysis of each city is the latest when read.
+    """
+
+    __tablename__ = 'licensed_pole_sets'
+
+    # '<date>_<licensed file>'; sending it again replaces the row
+    code: Mapped[str] = mapped_column(String(255), unique=True)
+    set_date: Mapped[date] = mapped_column(Date, index=True)
+    licensed_file: Mapped[str] = mapped_column(String(255))
+    # Markers inside no city of MG and SP, as [lon, lat, name]
+    outside_poles: Mapped[int]
+    outside_markers: Mapped[list] = mapped_column(JSON, deferred=True)
+
+    cities: Mapped[list['LicensedCity']] = relationship(
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        order_by='LicensedCity.city',
+    )
+
+
+class LicensedCity(Base):
+    __tablename__ = 'licensed_pole_cities'
+    __table_args__ = (UniqueConstraint('set_id', 'ibge_code'),)
+
+    set_id: Mapped[UUID] = mapped_column(
+        ForeignKey('licensed_pole_sets.id', ondelete='CASCADE'), index=True
+    )
+    city: Mapped[str] = mapped_column(String(100))
+    ibge_code: Mapped[str] = mapped_column(String(10), index=True)
+    poles: Mapped[int]
+    # [lon, lat, name]
+    markers: Mapped[list] = mapped_column(JSON, deferred=True)
 
 
 class BackboneCableType(CableTypeColumns, Base):

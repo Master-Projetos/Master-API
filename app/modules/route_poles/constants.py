@@ -15,6 +15,12 @@ NO_POLE_M = 25.0
 BASE_MIN_SHARE = 0.05
 CLOSE_POLE_M = 5.0
 
+# Licensed poles
+# Max distance between a licensed marker and the pole in use it is matched to
+MATCH_TOLERANCE_M = 10.0
+# Poles in use of two analyses this close are the same pole
+SAME_POLE_M = 1.0
+
 # Upload
 DEFAULT_RADIUS_M = 25.0
 MAX_RADIUS_M = 100.0

@@ -8,16 +8,19 @@ can't be downloaded.
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date
 from pathlib import PurePath
 
-from ..constants import CLOSE_POLE_M
+from ..constants import CLOSE_POLE_M, STATES
 from ..schemas import (
     AnalysisOptions,
     BackboneData,
     CableIn,
     CableTypeIn,
     CityAnalysisData,
+    LicensedCityData,
+    LicensedData,
     RouteAnalysisData,
     RouteUploadOptions,
     length_with_overlap,
@@ -26,7 +29,7 @@ from .city import City, find_cities, find_city
 from .city_poles import CityPoles, no_poles_error, poles_in_cities
 from .clip import clip_cables
 from .engine import RouteResult, analyze
-from .errors import AnalysisError
+from .errors import AnalysisError, SourceError
 from .geometry import LonLat
 from .kmz import (
     KmzKind,
@@ -36,13 +39,15 @@ from .kmz import (
     with_overlap_kmz,
     without_overlap_kmz,
 )
-from .routes import Cable, read_cables
+from .licensing import assign_markers, encode_cable_lines
+from .routes import Cable, read_cables, read_markers
 
 logger = logging.getLogger(__name__)
 
 FIRST_NUMBER = re.compile(r'\d+')
 
 KmzFiles = dict[str, bytes | None]
+Progress = Callable[[str, int, int, str | None], None]
 
 
 def run_analysis(
@@ -51,8 +56,8 @@ def run_analysis(
     """The analysis of routes inside one city, whole."""
     cables, vertices = read_routes(content)
     city = find_city(vertices, options.city, options.ibge_code)
-    found = poles_in_cities([city], vertices)[0]
-    if not found.poles:
+    found = poles_in_cities([city])[0]
+    if not found.count:
         raise no_poles_error('this city')
 
     analysis = analyze_city(city, cables, found, options)
@@ -67,23 +72,35 @@ def run_analysis(
 
 
 def run_backbone(
-    content: bytes, filename: str, options: AnalysisOptions
+    content: bytes,
+    filename: str,
+    options: AnalysisOptions,
+    progress: Progress | None = None,
 ) -> BackboneData:
     """The analysis of a backbone: one per city it passes through, each with
     only the stretch of the cables inside the city.
+
+    The progress is called from this thread as (stage, cities done, cities
+    total, city being analysed).
     """
+    report = progress or (lambda *_: None)
+    report('reading_routes', 0, 0, None)
     cables, vertices = read_routes(content)
+    report('finding_cities', 0, 0, None)
     cities = find_cities(vertices)
-    found = poles_in_cities(cities, vertices)
-    if not any(city_found.poles for city_found in found):
+    report('loading_poles', 0, len(cities), None)
+    found = poles_in_cities(cities)
+    if not any(city_found.count for city_found in found):
         raise no_poles_error('the cities of the routes')
 
     analyses = []
-    for city, city_found in zip(cities, found):
+    for done, (city, city_found) in enumerate(zip(cities, found)):
+        report('analyzing_cities', done, len(cities), city.name)
         if city_cables := clip_cables(cables, city.area):
             analyses.append(
                 analyze_city(city, city_cables, city_found, options)
             )
+    report('analyzing_cities', len(cities), len(cities), None)
     if not analyses:
         raise AnalysisError('No stretch of the routes is inside a city.')
 
@@ -94,6 +111,43 @@ def run_backbone(
         routes_file=filename,
         radius_m=options.radius_m,
         cities=analyses,
+    )
+
+
+def run_licensed(
+    content: bytes, filename: str, _options: None = None
+) -> LicensedData:
+    """The cities of the licensed markers of a file, and the markers in each.
+
+    The comparison with the poles in use is made when the result is read,
+    with whatever analysis of each city is the latest by then.
+    """
+    markers = read_markers(content)
+    if not markers:
+        raise AnalysisError('No point markers found in the file.')
+    try:
+        cities = find_cities([m[:2] for m in markers], len(markers))
+    except SourceError:
+        raise
+    except AnalysisError:
+        raise AnalysisError(
+            'No licensed marker is inside a city of '
+            f'{", ".join(STATES.values())}.'
+        ) from None
+    inside, outside = assign_markers(markers, cities)
+    today = date.today()
+    return LicensedData(
+        code=f'{today.isoformat()}_{PurePath(filename).stem}',
+        set_date=today,
+        licensed_file=filename,
+        cities=[
+            LicensedCityData(
+                city=city.name, ibge_code=city.code, markers=city_markers
+            )
+            for city, city_markers in zip(cities, inside)
+            if city_markers
+        ],
+        outside_markers=outside,
     )
 
 
@@ -137,6 +191,7 @@ def analyze_city(
         avg_span_m=average_span(result),
         **point_files(city.name, poles, result, options),
         **cable_files(city.name, cables, cable_types, result, options),
+        cable_lines=encode_cable_lines(cables),
         cable_types=cable_types,
         cables=[cable_row(cable, options.radius_m) for cable in cables],
     )

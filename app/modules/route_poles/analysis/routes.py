@@ -31,6 +31,10 @@ CABLE_TYPE = re.compile(
 _TYPE_LABELS = {p.upper(): label for p, label in CABLE_TYPE_PREFIXES.items()}
 # A KML coordinate is lon,lat[,alt]
 MIN_COORDINATES = 2
+MAX_MARKER_NAME = 255
+
+# lon, lat, name
+Marker = tuple[float, float, str]
 
 
 @dataclass
@@ -119,18 +123,48 @@ def _lines(placemark) -> list[list[LonLat]]:
     return lines
 
 
-def read_cables(content: bytes) -> list[Cable]:
-    """The cables (Placemarks with lines) of a KMZ/KML, in file order.
-
-    The order matters: where cables overlap, the first one keeps the length.
-    """
+def _parse(content: bytes):
     try:
-        root = ET.fromstring(kml_bytes(content))
+        return ET.fromstring(kml_bytes(content))
     except ET.ParseError as error:
         raise AnalysisError(
             f'The file is not a valid KML ({error}).'
         ) from None
 
+
+def read_markers(content: bytes) -> list[Marker]:
+    """The markers (Placemarks with a point) of a KMZ/KML, as (lon, lat,
+    name). The description stands in for a missing name.
+    """
+    markers = []
+    for placemark in _parse(content).iter():
+        if _tag(placemark) != 'Placemark':
+            continue
+        name = (_text(placemark, 'name') or _text(placemark, 'description'))[
+            :MAX_MARKER_NAME
+        ]
+        for geometry in placemark.iter():
+            if _tag(geometry) != 'Point':
+                continue
+            coordinates = _text(geometry, 'coordinates')
+            values = coordinates.split(',')
+            if len(values) < MIN_COORDINATES:
+                continue
+            try:
+                markers.append((float(values[0]), float(values[1]), name))
+            except ValueError:
+                raise AnalysisError(
+                    f"Invalid marker coordinates '{coordinates}'."
+                ) from None
+    return markers
+
+
+def read_cables(content: bytes) -> list[Cable]:
+    """The cables (Placemarks with lines) of a KMZ/KML, in file order.
+
+    The order matters: where cables overlap, the first one keeps the length.
+    """
+    root = _parse(content)
     cables = []
     excluded: Counter[str] = Counter()
 

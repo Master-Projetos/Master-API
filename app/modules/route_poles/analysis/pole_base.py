@@ -13,6 +13,7 @@ import struct
 import tarfile
 import tempfile
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,6 +22,9 @@ from .geometry import LonLat
 from .http import download
 
 logger = logging.getLogger(__name__)
+
+# min_lon, min_lat, max_lon, max_lat
+Box = tuple[float, float, float, float]
 
 TILE_ZOOM = 13
 TILE_N = 2**TILE_ZOOM
@@ -117,14 +121,26 @@ def decode_tile(tx: int, ty: int, data: bytes) -> list[LonLat]:
     return poles
 
 
-def read_poles(
-    path: Path, bbox: tuple[float, float, float, float]
-) -> tuple[list[LonLat], dict]:
-    """(poles of the tiles crossing bbox, manifest) of a base .tar.gz."""
+def tile_range(bbox: Box) -> tuple[int, int, int, int]:
+    """(x0, x1, y0, y1) of the tiles crossing bbox."""
     min_lon, min_lat, max_lon, max_lat = bbox
-    x0, x1 = int(lon_to_tile_x(min_lon)), int(lon_to_tile_x(max_lon))
-    y0, y1 = int(lat_to_tile_y(max_lat)), int(lat_to_tile_y(min_lat))
-    poles, manifest = [], {}
+    return (
+        int(lon_to_tile_x(min_lon)),
+        int(lon_to_tile_x(max_lon)),
+        int(lat_to_tile_y(max_lat)),
+        int(lat_to_tile_y(min_lat)),
+    )
+
+
+def read_poles(
+    path: Path, boxes: list[Box], collect: Callable[[list[LonLat]], None]
+) -> dict:
+    """Gives collect the poles of each tile crossing any of the boxes, one
+    tile at a time (a base has millions of poles, most outside the boxes).
+    Returns the manifest of the base .tar.gz.
+    """
+    ranges = [tile_range(box) for box in boxes]
+    manifest = {}
     with tarfile.open(path, 'r:*') as tar:
         for member in tar:
             if not member.isfile():
@@ -136,6 +152,8 @@ def read_poles(
             if not match:
                 continue
             tx, ty = int(match.group(1)), int(match.group(2))
-            if x0 <= tx <= x1 and y0 <= ty <= y1:
-                poles += decode_tile(tx, ty, tar.extractfile(member).read())
-    return poles, manifest
+            if any(
+                x0 <= tx <= x1 and y0 <= ty <= y1 for x0, x1, y0, y1 in ranges
+            ):
+                collect(decode_tile(tx, ty, tar.extractfile(member).read()))
+    return manifest

@@ -1,45 +1,57 @@
 """The poles inside each city, from every utility pole base."""
 
+from array import array
 from dataclasses import dataclass
 
 from ..constants import BASE_MIN_SHARE
 from .city import City
 from .errors import AnalysisError
 from .geometry import LonLat
-from .pole_base import POLE_BASES, local_bases, read_poles
+from .pole_base import POLE_BASES, Box, local_bases, read_poles
 
-# Margin (degrees) around the cities and routes when reading the pole tiles
+# Margin (degrees) around the cities when reading the pole tiles
 BBOX_MARGIN = 0.001
 
 
 @dataclass(frozen=True)
 class CityPoles:
-    poles: list[LonLat]
+    # lon, lat, lon, lat...: 16 bytes a pole instead of ~100 as a tuple
+    coords: array
     # e.g. 'BDGD Cemig-D 2025-12-31'; empty when no base has poles here
     base_label: str
 
+    @property
+    def count(self) -> int:
+        return len(self.coords) // 2
 
-def poles_in_cities(
-    cities: list[City], vertices: list[LonLat]
-) -> list[CityPoles]:
+    @property
+    def poles(self) -> list[LonLat]:
+        """A new list on each call: keep it only while analysing the city."""
+        return list(zip(self.coords[::2], self.coords[1::2]))
+
+
+def poles_in_cities(cities: list[City]) -> list[CityPoles]:
     """The poles inside each city, in the order of the cities.
 
     A pole inside more than one city counts for the first. A city on a border
     may have poles from more than one utility: the label lists the ones with
     a meaningful share.
     """
-    bbox = _bbox(cities, vertices)
-    poles: list[list[LonLat]] = [[] for _ in cities]
+    boxes = [_padded(city.area.bbox) for city in cities]
+    coords = [array('d') for _ in cities]
     found: list[list[tuple[int, str, str | None]]] = [[] for _ in cities]
     for base, path in local_bases():
-        base_poles, manifest = read_poles(path, bbox)
         counts = [0] * len(cities)
-        for pole in base_poles:
-            for k, city in enumerate(cities):
-                if city.area.contains(*pole):
-                    poles[k].append(pole)
-                    counts[k] += 1
-                    break
+
+        def assign(tile_poles: list[LonLat]) -> None:
+            for pole in tile_poles:
+                for k, city in enumerate(cities):
+                    if city.area.contains(*pole):
+                        coords[k].extend(pole)
+                        counts[k] += 1
+                        break
+
+        manifest = read_poles(path, boxes, assign)
         for k, count in enumerate(counts):
             if count:
                 found[k].append((
@@ -48,8 +60,8 @@ def poles_in_cities(
                     manifest.get('data_base'),
                 ))
     return [
-        CityPoles(city_poles, _base_label(city_poles, city_found))
-        for city_poles, city_found in zip(poles, found)
+        CityPoles(city_coords, _base_label(len(city_coords) // 2, city_found))
+        for city_coords, city_found in zip(coords, found)
     ]
 
 
@@ -61,27 +73,18 @@ def no_poles_error(where: str) -> AnalysisError:
     )
 
 
-def _bbox(
-    cities: list[City], vertices: list[LonLat]
-) -> tuple[float, float, float, float]:
-    xs = [p[0] for p in vertices]
-    ys = [p[1] for p in vertices]
-    for city in cities:
-        xs += (city.area.bbox[0], city.area.bbox[2])
-        ys += (city.area.bbox[1], city.area.bbox[3])
+def _padded(bbox: Box) -> Box:
     return (
-        min(xs) - BBOX_MARGIN,
-        min(ys) - BBOX_MARGIN,
-        max(xs) + BBOX_MARGIN,
-        max(ys) + BBOX_MARGIN,
+        bbox[0] - BBOX_MARGIN,
+        bbox[1] - BBOX_MARGIN,
+        bbox[2] + BBOX_MARGIN,
+        bbox[3] + BBOX_MARGIN,
     )
 
 
-def _base_label(
-    poles: list[LonLat], found: list[tuple[int, str, str | None]]
-) -> str:
+def _base_label(total: int, found: list[tuple[int, str, str | None]]) -> str:
     return ' + '.join(
         ' '.join(filter(None, ('BDGD', utility, data_base)))
         for count, utility, data_base in found
-        if count >= BASE_MIN_SHARE * len(poles)
+        if count >= BASE_MIN_SHARE * total
     )

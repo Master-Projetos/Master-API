@@ -8,13 +8,23 @@ from pydantic import BaseModel
 from app.modules.route_poles.analysis.kmz import KmzKind
 from app.modules.route_poles.analysis_service import AnalysisRow
 from app.modules.route_poles.backbone_service import BackboneRow
-from app.modules.route_poles.model import StoredKmz
+from app.modules.route_poles.constants import MATCH_TOLERANCE_M
+from app.modules.route_poles.jobs import BackboneJob
+from app.modules.route_poles.licensed_service import CityResult, SetResult
+from app.modules.route_poles.model import LicensedSet, StoredKmz
 
 from .backbone_schemas import (
     BackboneCityDetail,
     BackboneCityPublic,
     BackboneDetail,
+    BackboneJobPublic,
     BackbonePublic,
+)
+from .licensed_schemas import (
+    LicensedCityResult,
+    LicensedSetDetail,
+    LicensedSetSummary,
+    LicensedSource,
 )
 from .schemas import RouteAnalysisDetail, RouteAnalysisPublic
 
@@ -103,16 +113,98 @@ def backbone_public(
     )
 
 
-def kmz_response(kmz: StoredKmz | None, kind: KmzKind) -> Response:
-    if kmz is None:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='KMZ not found'
+def job_public(request: Request, job: BackboneJob) -> BackboneJobPublic:
+    url = (
+        public_url(request, 'read_backbone', backbone_ref=job.backbone_code)
+        if job.backbone_code
+        else None
+    )
+    licensed_url = (
+        public_url(request, 'read_licensed', licensed_ref=job.licensed_code)
+        if job.licensed_code
+        else None
+    )
+    return build(
+        BackboneJobPublic, job, backbone_url=url, licensed_url=licensed_url
+    )
+
+
+def licensed_summary(licensed: LicensedSet) -> LicensedSetSummary:
+    return build(
+        LicensedSetSummary,
+        licensed,
+        cities_count=len(licensed.cities),
+        licensed_poles=sum(c.poles for c in licensed.cities)
+        + licensed.outside_poles,
+    )
+
+
+def city_result(result: CityResult) -> LicensedCityResult:
+    city, comparison = result.city, result.comparison
+    sources = [
+        LicensedSource(
+            kind=source.kind,
+            code=source.code,
+            source_date=source.source_date,
         )
-    filename = quote(f'{KMZ_FILE_PREFIX[kind]}_{kmz.name}.kmz')
+        for source in result.sources
+    ]
+    counts = (
+        {
+            'used_poles': comparison.used_poles,
+            'matched': len(comparison.matched),
+            'unlicensed': len(comparison.unlicensed),
+            'unused': len(comparison.unused),
+        }
+        if comparison
+        else dict.fromkeys(('used_poles', 'matched', 'unlicensed', 'unused'))
+    )
+    return LicensedCityResult(
+        city=city.city,
+        ibge_code=city.ibge_code,
+        licensed_poles=city.poles,
+        status='compared' if comparison else 'pending',
+        source=sources[0] if sources else None,
+        sources=sources,
+        **counts,
+    )
+
+
+def licensed_detail(
+    request: Request, licensed: LicensedSet, result: SetResult
+) -> LicensedSetDetail:
+    cities = [city_result(city) for city in result.cities]
+    return build(
+        LicensedSetDetail,
+        licensed_summary(licensed),
+        tolerance_m=MATCH_TOLERANCE_M,
+        matched=sum(c.matched or 0 for c in cities),
+        unlicensed=sum(c.unlicensed or 0 for c in cities),
+        unused=sum(c.unused or 0 for c in cities),
+        pending_poles=sum(
+            c.licensed_poles for c in cities if c.status == 'pending'
+        ),
+        comparison_kmz_url=public_url(
+            request, 'download_licensed_kmz', licensed_ref=licensed.code
+        ),
+        cities=cities,
+    )
+
+
+def kmz_download(name: str, content: bytes) -> Response:
+    filename = quote(f'{name}.kmz')
     return Response(
-        kmz.content,
+        content,
         media_type=KMZ_MEDIA_TYPE,
         headers={
             'Content-Disposition': f"attachment; filename*=UTF-8''{filename}"
         },
     )
+
+
+def kmz_response(kmz: StoredKmz | None, kind: KmzKind) -> Response:
+    if kmz is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='KMZ not found'
+        )
+    return kmz_download(f'{KMZ_FILE_PREFIX[kind]}_{kmz.name}', kmz.content)

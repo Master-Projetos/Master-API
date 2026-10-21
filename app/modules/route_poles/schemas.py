@@ -67,6 +67,8 @@ class CityAnalysisData(CityMetrics):
     overlap_kmz: bytes | None = None
     with_overlap_kmz: bytes | None = None
     without_overlap_kmz: bytes | None = None
+    # The vertices of the cables, to compare them with the licensed poles
+    cable_lines: bytes | None = None
     cable_types: list[CableTypeIn] = Field(max_length=1_000)
     cables: list[CableIn] = Field(max_length=100_000)
 
@@ -100,6 +102,24 @@ class BackboneData(BaseModel):
     routes_file: FileName
     radius_m: Radius
     cities: list[CityAnalysisData] = Field(min_length=1, max_length=1_000)
+
+
+class LicensedCityData(BaseModel):
+    city: CityName
+    ibge_code: IbgeCode
+    # lon, lat, name
+    markers: list[tuple[float, float, str]] = Field(min_length=1)
+
+
+class LicensedData(BaseModel):
+    """The licensed poles of a file, by the city they are in."""
+
+    code: str = Field(min_length=1, max_length=255)
+    set_date: date
+    licensed_file: FileName
+    cities: list[LicensedCityData] = Field(max_length=1_000)
+    # Inside no city of MG and SP
+    outside_markers: list[tuple[float, float, str]]
 
 
 class AnalysisOptions(BaseModel):

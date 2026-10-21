@@ -46,7 +46,7 @@ def normalize(value):
 
 
 def describe_data(data, drop=()) -> dict:
-    fields = {*KMZ_FIELDS, 'cities', *drop}
+    fields = {*KMZ_FIELDS, 'cities', 'cable_lines', *drop}
     described = data.model_dump(mode='json', exclude=fields)
     described['kmz'] = {
         field: digest(kml_text(getattr(data, field))) for field in KMZ_FIELDS

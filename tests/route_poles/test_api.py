@@ -1,3 +1,6 @@
+from uuid import uuid4
+
+import anyio
 import httpx
 import pytest
 from fastapi import FastAPI
@@ -8,7 +11,8 @@ from app.api.v8.router import v8_router
 from app.core.database import get_session
 from app.core.limiter import limiter
 from app.modules.route_poles.analysis import pipeline
-from app.modules.route_poles.analysis.errors import SourceError
+from app.modules.route_poles.analysis.errors import AnalysisError, SourceError
+from app.modules.route_poles.analysis.routes import read_markers
 from tests.route_poles import scenarios as sc
 
 pytestmark = pytest.mark.anyio
@@ -278,3 +282,235 @@ async def test_unknown_analyses_are_404(client):
 async def test_the_old_upload_routes_are_gone(client, path):
     response = await client.post(path, files=upload())
     assert response.status_code in {404, 405}
+
+
+async def finished_job(client, job_id):
+    for _ in range(100):
+        job = (await client.get(f'/backbones/jobs/{job_id}')).json()
+        if job['status'] != 'running':
+            return job
+        await anyio.sleep(0.05)
+    raise AssertionError('the job did not finish')
+
+
+async def test_backbone_job_reports_progress(
+    client, monkeypatch, session_factory, routes_in_a_and_b
+):
+    monkeypatch.setattr(backbones, 'async_session', session_factory)
+
+    response = await client.post('/backbones/jobs', files=upload())
+
+    assert response.status_code == httpx.codes.ACCEPTED
+    started = response.json()
+    assert started['status'] == 'running'
+    job = await finished_job(client, started['id'])
+    assert job['status'] == 'completed'
+    assert job['cities_done'] == job['cities_total'] == CITIES
+    assert job['error'] is None
+    assert (
+        job['backbone_url'] == f'{BASE_URL}/backbones/{job["backbone_code"]}'
+    )
+    stored = await client.get(f'/backbones/{job["backbone_id"]}')
+    assert stored.json()['code'] == job['backbone_code']
+
+
+async def test_backbone_job_reports_the_failure(
+    client, monkeypatch, session_factory
+):
+    monkeypatch.setattr(backbones, 'async_session', session_factory)
+
+    started = (
+        await client.post('/backbones/jobs', files=upload(b'not a kml'))
+    ).json()
+
+    job = await finished_job(client, started['id'])
+    assert job['status'] == 'failed'
+    assert job['error']
+    assert job['backbone_id'] is None
+
+
+async def test_unknown_job_is_404(client):
+    response = await client.get(f'/backbones/jobs/{uuid4()}')
+
+    assert response.status_code == httpx.codes.NOT_FOUND
+
+
+CITY_A_CODE = '3122306'
+FAR_FROM_THE_POLES = (-44.8999, -20.1499)
+OUTSIDE_THE_CITIES = (-46.5, -23.5)
+ONE_M = 0.000009
+LICENSED_NEAR_USED = 3
+
+
+def licensed_upload(markers, filename='licensed_bh.kmz'):
+    return {'licensed': (filename, sc.markers_kmz(markers), KMZ_TYPE)}
+
+
+async def poles_in_use(client, backbone, ibge_code):
+    city = next(c for c in backbone['cities'] if c['ibge_code'] == ibge_code)
+    kmz = await client.get(city['poles_kmz_url'])
+    return [marker[:2] for marker in read_markers(kmz.content)]
+
+
+def licensed_markers(used):
+    """Three markers a meter from poles in use, one far from any pole of
+    the city A, one far in the city B and one outside the cities.
+    """
+    near = [
+        (lon, lat + ONE_M, f'licensed {i}')
+        for i, (lon, lat) in enumerate(used[:LICENSED_NEAR_USED])
+    ]
+    return [
+        *near,
+        (*FAR_FROM_THE_POLES, 'far in A'),
+        (-44.865, -20.149, 'far in B'),
+        (*OUTSIDE_THE_CITIES, 'outside'),
+    ]
+
+
+async def test_licensed_poles_wait_for_the_routes_then_are_compared(
+    client, routes_in_a_and_b
+):
+    backbone = (await client.post('/backbones', files=upload())).json()
+    used = await poles_in_use(client, backbone, CITY_A_CODE)
+    assert len(used) > LICENSED_NEAR_USED
+    await client.delete(f'/backbones/{backbone["code"]}')
+
+    response = await client.post(
+        '/licensed-poles', files=licensed_upload(licensed_markers(used))
+    )
+
+    assert response.status_code == httpx.codes.CREATED
+    waiting = response.json()
+    assert waiting['code'].endswith('_licensed_bh')
+    assert waiting['licensed_poles'] == LICENSED_NEAR_USED + 3
+    assert waiting['outside_poles'] == 1
+    assert waiting['pending_poles'] == LICENSED_NEAR_USED + 2
+    assert [c['status'] for c in waiting['cities']] == ['pending'] * CITIES
+    assert all(c['source'] is None for c in waiting['cities'])
+    assert waiting['matched'] == waiting['unused'] == 0
+
+    await client.post('/backbones', files=upload())
+    compared = (await client.get(f'/licensed-poles/{waiting["code"]}')).json()
+
+    city_a, city_b = compared['cities']
+    assert city_a['ibge_code'] == CITY_A_CODE
+    assert city_a['status'] == 'compared'
+    assert city_a['source']['kind'] == 'backbone'
+    assert city_a['source']['code'] == backbone['code']
+    assert city_a['matched'] == LICENSED_NEAR_USED
+    assert city_a['unused'] == 1
+    assert city_a['used_poles'] == len(used)
+    assert city_a['unlicensed'] == len(used) - LICENSED_NEAR_USED
+    assert (city_b['matched'], city_b['unused']) == (0, 1)
+    assert compared['pending_poles'] == 0
+    assert compared['matched'] == LICENSED_NEAR_USED
+    assert compared['unused'] == city_a['unused'] + city_b['unused']
+    assert compared['tolerance_m'] > 0
+    assert compared['outside_poles'] == 1
+
+    by_id = (await client.get(f'/licensed-poles/{waiting["id"]}')).json()
+    assert by_id == compared
+
+
+async def test_licensed_poles_comparison_kmz(client, routes_in_a_and_b):
+    await client.post('/backbones', files=upload())
+    created = (
+        await client.post(
+            '/licensed-poles',
+            files=licensed_upload([(*OUTSIDE_THE_CITIES, 'x')]),
+        )
+    ).json()
+
+    kmz = await client.get(created['comparison_kmz_url'])
+
+    assert kmz.status_code == httpx.codes.OK
+    assert kmz.headers['content-type'] == KMZ_TYPE
+    assert (
+        "filename*=UTF-8''licenciados_" in kmz.headers['content-disposition']
+    )
+    assert kmz.content[:2] == b'PK'
+    missing = await client.get('/licensed-poles/unknown/comparison.kmz')
+    assert missing.status_code == httpx.codes.NOT_FOUND
+
+
+async def test_licensed_poles_listing_and_removal(client, routes_in_a_and_b):
+    markers = [(-44.89, -20.14, 'a')]
+    await client.post('/licensed-poles', files=licensed_upload(markers))
+    again = (
+        await client.post('/licensed-poles', files=licensed_upload(markers))
+    ).json()
+
+    listed = (await client.get('/licensed-poles')).json()
+    # Sending the same file the same day replaces it
+    assert [row['id'] for row in listed] == [again['id']]
+    assert listed[0]['licensed_poles'] == 1
+
+    deleted = await client.delete(f'/licensed-poles/{again["code"]}')
+    assert deleted.status_code == httpx.codes.NO_CONTENT
+    for response in (
+        await client.get(f'/licensed-poles/{again["id"]}'),
+        await client.delete(f'/licensed-poles/{again["id"]}'),
+    ):
+        assert response.status_code == httpx.codes.NOT_FOUND
+    assert (await client.get('/licensed-poles')).json() == []
+
+
+async def test_licensed_job_stores_the_markers_and_runs_the_routes(
+    client, monkeypatch, session_factory, routes_in_a_and_b
+):
+    monkeypatch.setattr(backbones, 'async_session', session_factory)
+    files = {
+        **licensed_upload([(-44.89, -20.14, 'a')]),
+        'routes': ('backbone_bh.kmz', sc.routes_kmz(), KMZ_TYPE),
+    }
+
+    response = await client.post('/licensed-poles/jobs', files=files)
+
+    assert response.status_code == httpx.codes.ACCEPTED
+    started = response.json()
+    assert started['licensed_code'].endswith('_licensed_bh')
+    assert started['licensed_url'] == (
+        f'{BASE_URL}/licensed-poles/{started["licensed_code"]}'
+    )
+    job = await finished_job(client, started['id'])
+    assert job['status'] == 'completed'
+    compared = (
+        await client.get(f'/licensed-poles/{job["licensed_code"]}')
+    ).json()
+    city_a = compared['cities'][0]
+    assert city_a['status'] == 'compared'
+    assert city_a['source']['code'] == job['backbone_code']
+
+
+async def test_licensed_file_without_markers_is_422(client, routes_in_a_and_b):
+    response = await client.post('/licensed-poles', files=licensed_upload([]))
+
+    assert response.status_code == httpx.codes.UNPROCESSABLE_ENTITY
+    assert 'No point markers' in response.json()['detail']
+
+
+async def test_licensed_markers_outside_the_states_are_422(
+    client, monkeypatch
+):
+    monkeypatch.setattr(
+        pipeline, 'find_cities', raising(AnalysisError('The routes do not.'))
+    )
+
+    response = await client.post(
+        '/licensed-poles', files=licensed_upload([(0.0, 0.0, 'x')])
+    )
+
+    assert response.status_code == httpx.codes.UNPROCESSABLE_ENTITY
+
+
+async def test_licensed_ibge_down_is_502(client, monkeypatch):
+    monkeypatch.setattr(
+        pipeline, 'find_cities', raising(SourceError('IBGE is down'))
+    )
+
+    response = await client.post(
+        '/licensed-poles', files=licensed_upload([(-44.89, -20.14, 'x')])
+    )
+
+    assert response.status_code == httpx.codes.BAD_GATEWAY

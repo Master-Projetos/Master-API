@@ -126,18 +126,36 @@ def fake_local_bases():
     return [(POLE_BASES[0], Path('cemig')), (POLE_BASES[1], Path('dme'))]
 
 
-def fake_read_poles(path, bbox):
-    min_lon, min_lat, max_lon, max_lat = bbox
-    poles = [
-        p
-        for p in BASE_POLES[path.name]
-        if min_lon <= p[0] <= max_lon and min_lat <= p[1] <= max_lat
-    ]
-    return poles, BASE_MANIFESTS[path.name]
+def fake_read_poles(path, boxes, collect):
+    for p in BASE_POLES[path.name]:
+        if any(
+            min_lon <= p[0] <= max_lon and min_lat <= p[1] <= max_lat
+            for min_lon, min_lat, max_lon, max_lat in boxes
+        ):
+            collect([p])
+    return BASE_MANIFESTS[path.name]
 
 
-def empty_read_poles(path, bbox):
-    return [], {}
+def empty_read_poles(path, boxes, collect):
+    return {}
+
+
+def markers_kmz(markers: list[tuple[float, float, str]]) -> bytes:
+    """A KMZ with a point marker for each (lon, lat, name)."""
+    placemarks = ''.join(
+        f'<Placemark><name>{name}</name><Point><coordinates>{lon},{lat},0'
+        '</coordinates></Point></Placemark>'
+        for lon, lat, name in markers
+    )
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as kmz:
+        kmz.writestr(
+            'doc.kml',
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+            f'<Folder>{placemarks}</Folder></Document></kml>',
+        )
+    return buffer.getvalue()
 
 
 def route_vertices() -> list[LonLat]:

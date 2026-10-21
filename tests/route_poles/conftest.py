@@ -16,7 +16,7 @@ def route_tables():
     return [
         table
         for name, table in Base.metadata.tables.items()
-        if name.startswith(('route_', 'backbone'))
+        if name.startswith(('route_', 'backbone', 'licensed_'))
     ]
 
 
@@ -46,7 +46,7 @@ def pole_bases(monkeypatch):
 @pytest.fixture
 def routes_in_a_and_b(monkeypatch, pole_bases, city_a, city_b):
     monkeypatch.setattr(pipeline, 'find_city', lambda *_: city_a)
-    monkeypatch.setattr(pipeline, 'find_cities', lambda _: [city_a, city_b])
+    monkeypatch.setattr(pipeline, 'find_cities', lambda *_: [city_a, city_b])
 
 
 @pytest.fixture

@@ -313,12 +313,17 @@ def _boxes_overlap(a: tuple, b: tuple) -> bool:
     return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
 
 
-def find_cities(points: list[LonLat]) -> list[City]:
-    """Every city (MG and SP) the route vertices are in, most vertices first.
+def find_cities(
+    points: list[LonLat], sample_size: int = ALL_CITIES_SAMPLE
+) -> list[City]:
+    """Every city (MG and SP) the points are in, most points first.
+
+    Only about sample_size points are looked at: pass len(points) when a city
+    with a few points can't be missed.
 
     Raises AnalysisError (route outside MG/SP) or SourceError (IBGE down).
     """
-    sample = points[:: max(1, len(points) // ALL_CITIES_SAMPLE)]
+    sample = points[:: max(1, len(points) // sample_size)]
     route_box = (
         min(p[0] for p in sample),
         min(p[1] for p in sample),
@@ -343,7 +348,13 @@ def find_cities(points: list[LonLat]) -> list[City]:
             area = Area(_polygons(feature['geometry']))
             if not _boxes_overlap(area.bbox, route_box):
                 continue
-            outside = [p for p in remaining if not area.contains(*p)]
+            x0, y0, x1, y1 = area.bbox
+            outside = [
+                p
+                for p in remaining
+                if not (x0 <= p[0] <= x1 and y0 <= p[1] <= y1)
+                or not area.contains(*p)
+            ]
             if len(outside) < len(remaining):
                 code = _feature_code(feature.get('properties') or {})
                 found.append((len(remaining) - len(outside), code, area))

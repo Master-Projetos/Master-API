@@ -36,19 +36,40 @@ class Upload:
     filename: str
 
 
-async def read_upload(
-    file: Annotated[UploadFile, File(description='Routes KMZ or KML')],
-) -> Upload:
+async def read_file(file: UploadFile, default_name: str) -> Upload:
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
             detail=f'File larger than {MAX_UPLOAD_BYTES // 1_000_000} MB',
         )
-    return Upload(content, PurePath(file.filename or 'routes.kmz').name)
+    return Upload(content, PurePath(file.filename or default_name).name)
+
+
+async def read_upload(
+    file: Annotated[UploadFile, File(description='Routes KMZ or KML')],
+) -> Upload:
+    return await read_file(file, 'routes.kmz')
+
+
+async def read_licensed(
+    licensed: Annotated[
+        UploadFile,
+        File(description='KMZ or KML with a marker for each licensed pole'),
+    ],
+) -> Upload:
+    return await read_file(licensed, 'licensed.kmz')
+
+
+async def read_routes(
+    routes: Annotated[UploadFile, File(description='Routes KMZ or KML')],
+) -> Upload:
+    return await read_file(routes, 'routes.kmz')
 
 
 UploadDep = Annotated[Upload, Depends(read_upload)]
+LicensedDep = Annotated[Upload, Depends(read_licensed)]
+RoutesDep = Annotated[Upload, Depends(read_routes)]
 
 
 def form_options(
