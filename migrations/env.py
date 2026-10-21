@@ -12,6 +12,7 @@ from app.core.database import Base
 from app.modules.api_key.model import ApiKey
 from app.modules.route_poles import model as route_poles_model
 from app.modules.user.model import User
+from app.modules.restock.model import Restock
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

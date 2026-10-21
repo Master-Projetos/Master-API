@@ -144,9 +144,7 @@ def _find_site_columns(
     # A renamed label would silently drop a site from the response. The last
     # group in the header is not a site, so it is not expected to have one
     last_group = site_names.iloc[-1]
-    missing_sites = (
-        set(site_names.dropna()) - set(site_columns) - {last_group}
-    )
+    missing_sites = set(site_names.dropna()) - set(site_columns) - {last_group}
     if missing_sites:
         logger.warning(
             'No "%s" column for: %s', label_prefix, sorted(missing_sites)

@@ -5,7 +5,7 @@ from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
 from app.modules.poles.service_v7 import load_viability_poles
-from app.api.v7.poles.schemas import PolesByUtility
+from app.api.v1.modules.poles.schemas import PolesByUtility
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +15,11 @@ router = APIRouter(
     dependencies=[Security(require_scope(Scope.POLES_READ))],
 )
 
-@router.get('', response_model = PolesByUtility, response_model_by_alias=True)
+
+@router.get('', response_model=PolesByUtility, response_model_by_alias=True)
 @limiter.limit('100/minute')
 def read_poles(
-    request: Request,
-    pole_owners: list[str] | None = Query(default=None)
+    request: Request, pole_owners: list[str] | None = Query(default=None)
 ):
     try:
         return load_viability_poles(pole_owners)

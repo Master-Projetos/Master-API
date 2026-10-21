@@ -1,9 +1,7 @@
-from fastapi import APIRouter
-
-from app.api.v2.modules.B2B.routers import router as b2b_router
-from app.api.v2.modules.stock.routers import router as stock_router
+lazy from fastapi import APIRouter
+lazy from app.api.v2.modules.restock.router import restock_router
 
 v2_router = APIRouter()
 
-v2_router.include_router(b2b_router)
-v2_router.include_router(stock_router)
+
+v2_router.include_router(restock_router, tags=['restock'])

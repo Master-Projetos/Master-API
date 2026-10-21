@@ -60,11 +60,20 @@ STOCK_V6_DELETE_COLUMNS = [
     'Grupo de Material',
 ]
 
-MINIMAL_STOCK_DELETE = ['Unid.', 'Saldo CD',
-       'REPOSIÇÃO REGIONAL', 'SALDO LAVRAS', 'REPOSIÇÃO REGIONAL.1',
-       'SALDO TAUBATE', 'REPOSIÇÃO REGIONAL.2', 'SALDO UNAI',
-       'REPOSIÇÃO REGIONAL.3', 'SALDO MONTES CLAROS', 'REPOSIÇÃO REGIONAL.4',
-       'TOTAL']
+MINIMAL_STOCK_DELETE = [
+    'Unid.',
+    'Saldo CD',
+    'REPOSIÇÃO REGIONAL',
+    'SALDO LAVRAS',
+    'REPOSIÇÃO REGIONAL.1',
+    'SALDO TAUBATE',
+    'REPOSIÇÃO REGIONAL.2',
+    'SALDO UNAI',
+    'REPOSIÇÃO REGIONAL.3',
+    'SALDO MONTES CLAROS',
+    'REPOSIÇÃO REGIONAL.4',
+    'TOTAL',
+]
 
 # Swap sheet sections the API can return; all of them when none is asked for
 SWAP_SECTIONS = [

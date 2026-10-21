@@ -5,6 +5,7 @@ Revises: 5d2b8f4e7a13
 Create Date: 2026-10-15 14:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -21,7 +22,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     # Nullable, no default: instant on existing rows
-    op.add_column('route_analyses', sa.Column('overlap_kmz', sa.LargeBinary(), nullable=True))
+    op.add_column(
+        'route_analyses',
+        sa.Column('overlap_kmz', sa.LargeBinary(), nullable=True),
+    )
 
 
 def downgrade() -> None:

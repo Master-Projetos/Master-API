@@ -45,7 +45,14 @@ ITEM_COLUMNS = {
 
 DATE_COLUMNS = ['Data Início', 'Data Término']
 
-TEXT_ITEM_COLUMNS = ('client', 'requester', 'priority', 'region', 'sector', 'ocomon_link')
+TEXT_ITEM_COLUMNS = (
+    'client',
+    'requester',
+    'priority',
+    'region',
+    'sector',
+    'ocomon_link',
+)
 
 UNASSIGNED_REQUESTER = 'Sem solicitante'
 

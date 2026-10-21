@@ -7,9 +7,18 @@ from app.core.constants import STOCK_V6_SHEETS
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.stock.service_v6 import load_config, load_sheets, merge_minimal_stock
+from app.modules.stock.service_v6 import (
+    load_config,
+    load_sheets,
+    merge_minimal_stock,
+)
+from app.modules.stock.services import load_restock_schedule
 
-from .schemas import StockConfigItem, StockSheets
+from app.api.v1.modules.stock.schemas import (
+    RestockSchedule,
+    StockConfigItem,
+    StockSheets,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +29,18 @@ router = APIRouter(
     tags=['Stock'],
     dependencies=[Security(require_scope(Scope.STOCK_READ))],
 )
+
+
+@router.get('/restock-schedule', response_model=RestockSchedule)
+@limiter.limit('30/minute')
+def read_restock_schedule(request: Request):
+    try:
+        return load_restock_schedule()
+    except Exception:
+        logger.exception('failed to load the restock schedule')
+        raise HTTPException(
+            status_code=502, detail='Could not load the restock schedule'
+        )
 
 
 @router.get('/config', response_model=list[StockConfigItem])
@@ -60,15 +81,19 @@ def read_stock(
             status_code=502, detail='Could not load the stock spreadsheet'
         )
 
+
 @router.get('/minimal')
 @limiter.limit('10/minute')
-def get_stock_with_minimal(
-        request: Request
-):
+def get_stock_with_minimal(request: Request):
     merge_sheet = {}
 
     for stock in SHEET_NAMES:
         merge_df = merge_minimal_stock(stock)
-        merge_sheet[stock] = merge_df.astype(object).where(merge_df.notna(), None).to_dict(orient='records')
+        merge_sheet[stock] = (
+            merge_df
+            .astype(object)
+            .where(merge_df.notna(), None)
+            .to_dict(orient='records')
+        )
 
     return merge_sheet

@@ -19,7 +19,7 @@ from app.modules.geogrid.service import (
     treat_viabilidade,
 )
 
-from .schemas import ReportSchema, Viabily
+from app.api.v1.modules.geogrid.schemas import ReportSchema, Viabily
 
 logger = logging.getLogger(__name__)
 

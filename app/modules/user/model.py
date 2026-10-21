@@ -28,4 +28,6 @@ class User(Base):
         server_default=UserRole.USER.value,
     )
 
-    is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+    is_active: Mapped[bool] = mapped_column(
+        default=True, server_default=true()
+    )

@@ -5,6 +5,7 @@ Revises: e5a9c2d7b134
 Create Date: 2026-10-20 16:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -20,8 +21,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('route_analyses', sa.Column('cable_lines', sa.LargeBinary(), nullable=True))
-    op.add_column('backbone_cities', sa.Column('cable_lines', sa.LargeBinary(), nullable=True))
+    op.add_column(
+        'route_analyses',
+        sa.Column('cable_lines', sa.LargeBinary(), nullable=True),
+    )
+    op.add_column(
+        'backbone_cities',
+        sa.Column('cable_lines', sa.LargeBinary(), nullable=True),
+    )
 
 
 def downgrade() -> None:

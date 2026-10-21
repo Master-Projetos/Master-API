@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
 
-from app.api.v3.api_keys.schemas import (
+from app.api.v1.modules.api_keys.schemas import (
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyPublic,

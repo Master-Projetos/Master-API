@@ -7,7 +7,7 @@ class Item(BaseModel):
     requester: str | None
     priority: str | None
     region: str
-    ocomon_link : str | None
+    ocomon_link: str | None
     start_date: str | None
     end_date: str | None
     remaining_days: int | None

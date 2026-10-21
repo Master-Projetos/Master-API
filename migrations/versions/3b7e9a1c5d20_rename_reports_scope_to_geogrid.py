@@ -5,6 +5,7 @@ Revises: 8c1f3e2a9d47
 Create Date: 2026-09-30 15:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -21,7 +22,7 @@ def upgrade() -> None:
     """Upgrade schema."""
     # Existing keys keep their access after the reports -> geogrid rename
     op.execute(
-        "UPDATE api_keys "
+        'UPDATE api_keys '
         "SET scopes = array_replace(scopes, 'reports:read', 'geogrid:read') "
         "WHERE 'reports:read' = ANY(scopes)"
     )
@@ -30,7 +31,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.execute(
-        "UPDATE api_keys "
+        'UPDATE api_keys '
         "SET scopes = array_replace(scopes, 'geogrid:read', 'reports:read') "
         "WHERE 'geogrid:read' = ANY(scopes)"
     )

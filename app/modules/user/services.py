@@ -6,7 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_password_hash
 from app.modules.user.model import User, UserRole
-from app.api.v3.user.schemas import AdminUserUpdate, UserCreate, UserUpdate
+from app.api.v1.modules.user.schemas import (
+    AdminUserUpdate,
+    UserCreate,
+    UserUpdate,
+)
 
 
 async def get_users_service(
@@ -72,8 +76,7 @@ async def update_user_service(
 
     conflicting_user = await session.scalar(
         select(User).where(
-            (User.id
-            != user_id)
+            (User.id != user_id)
             & or_(
                 User.username == updated_fields.get('username'),
                 User.email == updated_fields.get('email'),

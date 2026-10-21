@@ -6,8 +6,8 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy.exc import IntegrityError
 
-from app.api.v8.route_poles import backbones, dependencies
-from app.api.v8.router import v8_router
+from app.api.v1.modules.route_poles import backbones, dependencies
+from app.api.v1.modules.route_poles.router import router as route_poles_router
 from app.core.database import get_session
 from app.core.limiter import limiter
 from app.modules.route_poles.analysis import pipeline
@@ -17,7 +17,7 @@ from tests.route_poles import scenarios as sc
 
 pytestmark = pytest.mark.anyio
 
-BASE_URL = 'https://testserver/api/v8/route-poles'
+BASE_URL = 'https://testserver/api/v1/route-poles'
 KMZ_TYPE = 'application/vnd.google-earth.kmz'
 MAX_FILENAME = 300
 CITIES = 2
@@ -28,7 +28,7 @@ EDITED = 99
 async def client(session_factory, monkeypatch):
     app = FastAPI()
     app.state.limiter = limiter
-    app.include_router(v8_router, prefix='/api/v8')
+    app.include_router(route_poles_router, prefix='/api/v1')
 
     async def test_session():
         async with session_factory() as session:

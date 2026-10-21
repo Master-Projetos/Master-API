@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 
 from app.core.security import CurrentAdmin, CurrentUser, SessionDep
-from app.api.v3.user.schemas import (
+from app.api.v1.modules.user.schemas import (
     AdminUserUpdate,
     UserCreate,
     UserPublic,

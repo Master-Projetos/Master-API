@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -19,7 +20,7 @@ from app.core.settings import get_settings
 from app.modules.api_key.model import ApiKey, Scope
 from app.modules.user.model import User, UserRole
 
-oauth2_scheme = OAuth2PasswordBearer('api/v3/auth/token')
+oauth2_scheme = OAuth2PasswordBearer('api/v1/auth/token')
 api_key_header = APIKeyHeader(name='X-API-Key', auto_error=False)
 # Only for routes opted in with require_scope(..., allow_query=True), for
 # clients that can't send headers (Google Sheets IMPORTDATA)
@@ -28,6 +29,8 @@ password_hasher = PasswordHash.recommended()
 
 settings = get_settings()
 DUMMY_PASSWORD_HASH = password_hasher.hash('dummy_password')
+
+logger = logging.getLogger(__name__)
 
 API_KEY_PREFIX = 'lk'
 API_KEY_PARTS = 3
@@ -153,11 +156,15 @@ async def authenticate_api_key(
         headers={'WWW-Authenticate': 'ApiKey'},
     )
     if not raw_key:
+        logger.warning('api key rejected: no X-API-Key header or key param')
         raise invalid_key_exception
 
     # maxsplit=2 because the secret itself may contain '_'
     parts = raw_key.split('_', 2)
     if len(parts) != API_KEY_PARTS or parts[0] != API_KEY_PREFIX:
+        logger.warning(
+            "api key rejected: malformed key, expected 'lk_<prefix>_<secret>'"
+        )
         raise invalid_key_exception
 
     row = (
@@ -168,10 +175,14 @@ async def authenticate_api_key(
         )
     ).first()
     if row is None:
+        logger.warning('api key rejected: prefix %s not found', parts[1])
         raise invalid_key_exception
 
     api_key, user = row
     if not hmac.compare_digest(api_key.key_hash, hash_api_key(raw_key)):
+        logger.warning(
+            'api key rejected: wrong secret for prefix %s', parts[1]
+        )
         raise invalid_key_exception
 
     # Checked on every request: revoking, expiring or deactivating the
@@ -179,6 +190,13 @@ async def authenticate_api_key(
     now = datetime.now(tz=timezone.utc)
     is_expired = api_key.expires_at is not None and api_key.expires_at <= now
     if api_key.revoked_at is not None or is_expired or not user.is_active:
+        logger.warning(
+            'api key rejected: prefix %s revoked=%s expired=%s user_active=%s',
+            parts[1],
+            api_key.revoked_at is not None,
+            is_expired,
+            user.is_active,
+        )
         raise invalid_key_exception
 
     # Repeated in the WHERE so concurrent requests write only once
