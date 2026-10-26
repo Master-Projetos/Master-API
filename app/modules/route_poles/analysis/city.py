@@ -284,6 +284,10 @@ def find_city(
     if not code and name:
         code = _code_by_name(name, names, incomplete)
         states = [code[:2]]
+    elif code and (code[:2] not in STATES or (names and code not in names)):
+        raise AnalysisError(
+            f'IBGE code {code} is not a city of {_states_label(STATES)}.'
+        )
 
     failures: list[str] = []
     if code:

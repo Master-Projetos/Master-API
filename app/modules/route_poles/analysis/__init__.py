@@ -1,8 +1,9 @@
 """Route poles analysis: cables of a routes KMZ crossed with the BDGD poles.
 
 Pure computation, no database and no FastAPI. The entry points are in
-pipeline: run_analysis (routes inside one city) and run_backbone (one analysis
-per city the routes pass through).
+pipeline: run_analysis (routes inside one city), run_backbone (one analysis
+per city the routes pass through), run_licensed (the cities of the licensed
+markers) and run_city_poles (every pole of a city, with no routes).
 
 routes      reads the cables of the KMZ/KML
 city        finds the city boundaries (IBGE)

@@ -10,6 +10,8 @@ from app.api.v1.modules.route_poles import backbones, dependencies
 from app.api.v1.modules.route_poles.router import router as route_poles_router
 from app.core.database import get_session
 from app.core.limiter import limiter
+from app.modules.route_poles.analysis import city as city_module
+from app.modules.route_poles.analysis import city_poles as city_poles_module
 from app.modules.route_poles.analysis import pipeline
 from app.modules.route_poles.analysis.errors import AnalysisError, SourceError
 from app.modules.route_poles.analysis.routes import read_markers
@@ -514,3 +516,77 @@ async def test_licensed_ibge_down_is_502(client, monkeypatch):
     )
 
     assert response.status_code == httpx.codes.BAD_GATEWAY
+
+
+def rounded(lon, lat):
+    # The KMZ keeps 7 decimals
+    return round(lon, 6), round(lat, 6)
+
+
+@pytest.fixture
+def ibge(monkeypatch, pole_bases):
+    fake = sc.FakeIbge()
+    monkeypatch.setattr(city_module, 'fetch', fake)
+    return fake
+
+
+@pytest.mark.parametrize('city_ref', ['divinopolis', 'Divinópolis', '3122306'])
+async def test_city_poles_kmz(client, ibge, city_a, city_ref):
+    expected = city_poles_module.poles_in_cities([city_a])[0].poles
+
+    kmz = await client.get(f'/cities/{city_ref}/poles.kmz')
+
+    assert kmz.status_code == httpx.codes.OK
+    assert kmz.headers['content-type'] == KMZ_TYPE
+    assert (
+        "filename*=UTF-8''postes_municipio_3122306_Divin%C3%B3polis.kmz"
+        in kmz.headers['content-disposition']
+    )
+    poles = [rounded(*marker[:2]) for marker in read_markers(kmz.content)]
+    assert poles
+    assert poles == [rounded(*pole) for pole in expected]
+
+
+@pytest.mark.parametrize(
+    ('city_ref', 'ibge_options', 'detail'),
+    [
+        ('Atlantis', {}, "City 'Atlantis' not found"),
+        ('%20', {}, 'Provide the city name'),
+        ('Divinopolis', {'homonym': True}, 'more than one city'),
+        ('3199999', {}, 'IBGE code 3199999 is not a city'),
+        ('3304557', {}, 'IBGE code 3304557 is not a city'),
+    ],
+)
+async def test_city_poles_of_an_unknown_city_are_422(
+    client, monkeypatch, city_ref, ibge_options, detail
+):
+    monkeypatch.setattr(city_module, 'fetch', sc.FakeIbge(**ibge_options))
+
+    response = await client.get(f'/cities/{city_ref}/poles.kmz')
+
+    assert response.status_code == httpx.codes.UNPROCESSABLE_ENTITY
+    assert detail in response.json()['detail']
+
+
+async def test_city_poles_of_a_city_without_poles_are_422(
+    client, monkeypatch, ibge
+):
+    monkeypatch.setattr(city_poles_module, 'read_poles', sc.empty_read_poles)
+
+    response = await client.get('/cities/3122306/poles.kmz')
+
+    assert response.status_code == httpx.codes.UNPROCESSABLE_ENTITY
+    assert 'No poles from the pole bases' in response.json()['detail']
+
+
+async def test_city_poles_with_the_boundary_down_are_502(
+    client, monkeypatch, pole_bases
+):
+    monkeypatch.setattr(
+        city_module, 'fetch', sc.FakeIbge(fail=['/malhas/', 'geojs-'])
+    )
+
+    response = await client.get('/cities/3122306/poles.kmz')
+
+    assert response.status_code == httpx.codes.BAD_GATEWAY
+    assert 'Could not get the city boundary' in response.json()['detail']

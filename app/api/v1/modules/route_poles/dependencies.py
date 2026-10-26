@@ -128,8 +128,8 @@ BackboneOptionsDep = Annotated[AnalysisOptions, Depends(backbone_options)]
 
 
 @contextmanager
-def upload_errors():
-    """The analysis errors as the HTTP errors of an upload."""
+def analysis_errors():
+    """The analysis errors as HTTP errors."""
     try:
         yield
     except SourceError as error:
@@ -164,7 +164,7 @@ async def analyze_upload[T, O](
     """Runs the job off the event loop: it is CPU-bound and downloads the
     pole bases and city boundaries.
     """
-    with upload_errors():
+    with analysis_errors():
         return await run_in_threadpool(
             job, upload.content, upload.filename, options
         )

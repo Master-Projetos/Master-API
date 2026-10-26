@@ -1,4 +1,5 @@
-"""Turns an uploaded routes file into the data to store.
+"""Turns an uploaded routes file into the data to store, and a city into the
+KMZ of its poles.
 
 Blocking: CPU and network. Raises AnalysisError when the file or the cities
 can't be analysed (SourceError when IBGE is down) and OSError when a pole base
@@ -149,6 +150,19 @@ def run_licensed(
         ],
         outside_markers=outside,
     )
+
+
+def run_city_poles(name: str | None, code: str | None) -> tuple[City, bytes]:
+    """The city, by IBGE code or else by name, and a KMZ with every pole of
+    the bases inside it.
+    """
+    if not (name or code):
+        raise AnalysisError('Provide the city name or its IBGE code.')
+    city = find_city([], name, code)
+    found = poles_in_cities([city])[0]
+    if not found.count:
+        raise no_poles_error('this city')
+    return city, all_poles_kmz(city.name, found.poles)
 
 
 def read_routes(content: bytes) -> tuple[list[Cable], list[LonLat]]:

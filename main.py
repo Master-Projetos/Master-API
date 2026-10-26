@@ -15,7 +15,7 @@ settings = get_settings()
 app = FastAPI(
     title='Leclerc API',
     version=settings.API_VERSION,
-    description='Batendo no seusistema',
+    description='Batendo no seu sistema',
     openapi_url='/openapi.json' if settings.DEBUG else None,
 )
 
