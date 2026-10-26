@@ -16,6 +16,8 @@ KMZ_FIELDS = (
     'without_overlap_kmz',
 )
 DATE_PLACEHOLDER = 'DATE'
+# The golden files were recorded with this radius, before the default changed
+GOLDEN_RADIUS_M = 25.0
 
 
 MAX_INLINE_CHARS = 3000

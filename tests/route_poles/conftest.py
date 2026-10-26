@@ -10,6 +10,7 @@ from app.modules.route_poles.analysis import pipeline
 from app.modules.route_poles.analysis.city import Area, City
 from app.modules.route_poles.schemas import AnalysisOptions, RouteUploadOptions
 from tests.route_poles import scenarios as sc
+from tests.route_poles.golden_support import GOLDEN_RADIUS_M
 
 
 def route_tables():
@@ -52,7 +53,9 @@ def routes_in_a_and_b(monkeypatch, pole_bases, city_a, city_b):
 @pytest.fixture
 def analysis_data(routes_in_a_and_b):
     return pipeline.run_analysis(
-        sc.routes_kmz(), 'backbone_bh.kmz', RouteUploadOptions(**ALL_KMZ)
+        sc.routes_kmz(),
+        'backbone_bh.kmz',
+        RouteUploadOptions(radius_m=GOLDEN_RADIUS_M, **ALL_KMZ),
     )
 
 

@@ -17,7 +17,7 @@ from app.modules.route_poles.analysis.licensing import (
     poles_near,
 )
 from app.modules.route_poles.analysis.routes import Marker, read_markers
-from app.modules.route_poles.constants import SAME_POLE_M
+from app.modules.route_poles.constants import LICENSED_CABLE_M, SAME_POLE_M
 from app.modules.route_poles.model import (
     Backbone,
     BackboneCity,
@@ -38,7 +38,8 @@ class UsedSource(NamedTuple):
     created_at: datetime
     # The id of the backbone city or of the analysis
     row_id: UUID
-    # A marker with a cable this near is in use
+    # Of the analysis: a marker is in use with a cable this near, or within
+    # LICENSED_CABLE_M
     radius_m: float
 
 
@@ -269,6 +270,6 @@ def merge_used(
         if stored.cable_lines:
             cables.append((
                 decode_cable_lines(stored.cable_lines),
-                source.radius_m,
+                max(source.radius_m, LICENSED_CABLE_M),
             ))
     return used, cables

@@ -1,6 +1,7 @@
 """The licensed poles crossed with the poles in use."""
 
 import io
+import math
 import zipfile
 from datetime import date, datetime
 from types import SimpleNamespace
@@ -26,7 +27,11 @@ from app.modules.route_poles.analysis.licensing import (
     poles_near,
 )
 from app.modules.route_poles.analysis.routes import Cable, read_markers
-from app.modules.route_poles.constants import MATCH_TOLERANCE_M
+from app.modules.route_poles.constants import (
+    DISPLACED_POLE_M,
+    LICENSED_CABLE_M,
+    MATCH_TOLERANCE_M,
+)
 from tests.route_poles import scenarios as sc
 
 pytestmark = pytest.mark.anyio
@@ -34,6 +39,7 @@ pytestmark = pytest.mark.anyio
 # About one meter of latitude
 ONE_M = 0.000009
 LON, LAT = -44.89, -20.135
+ONE_M_EAST = ONE_M / math.cos(math.radians(LAT))
 
 
 def pole(index: int, north_m: float = 0.0) -> tuple[float, float]:
@@ -165,6 +171,76 @@ def test_compare_city_keeps_the_licensed_position():
     assert result.matched == [(*pole(0, 1), 'x')]
 
 
+def test_a_displaced_pole_in_use_is_the_licensed_pole():
+    result = compare_city([(*pole(0, 15), 'x')], [pole(0)])
+
+    assert result.matched == [(*pole(0, 15), 'x')]
+    assert result.by_pole[0][1] == pytest.approx(15, abs=0.5)
+    assert result.unlicensed == []
+
+
+def test_a_pole_beyond_the_displacement_is_another_pole():
+    result = compare_city([(*pole(0, DISPLACED_POLE_M + 5), 'x')], [pole(0)])
+
+    assert [m[2] for m in result.unused] == ['x']
+    assert result.unlicensed == [pole(0)]
+
+
+def test_a_displaced_pole_pairs_with_one_licensed_marker_only():
+    result = compare_city([(*pole(0), 'x')], [pole(0, 12), pole(0, -16)])
+
+    assert result.by_pole[0][1] == pytest.approx(12, abs=0.5)
+    assert result.unlicensed == [pole(0, -16)]
+
+
+def test_the_closest_licensed_marker_takes_the_displaced_pole():
+    result = compare_city(
+        [(*pole(0, 18), 'far'), (*pole(0, -12), 'close')], [pole(0)]
+    )
+
+    assert [m[2] for m in result.matched] == ['close']
+    assert [m[2] for m in result.unused] == ['far']
+
+
+def test_a_displaced_pairing_never_takes_a_pole_already_matched():
+    result = compare_city(
+        [(*pole(0, 1), 'same'), (*pole(0, 15), 'displaced')], [pole(0)]
+    )
+
+    assert [m[2] for m in result.matched] == ['same']
+    assert [m[2] for m in result.unused] == ['displaced']
+
+
+def test_a_licensed_marker_between_two_in_use_is_in_use():
+    line = [(*pole(0, 40 * k), f'P {k}') for k in range(3)]
+
+    result = compare_city(line, [pole(0), pole(0, 80)])
+
+    assert [m[2] for m in result.by_sequence] == ['P 1']
+    assert result.unused == []
+    assert len(result.matched) == len(line)
+
+
+def test_a_corner_is_not_a_sequence():
+    corner = [
+        (*pole(0), 'a'),
+        (*pole(0, 40), 'corner'),
+        (LON + 40 * ONE_M_EAST, LAT + 40 * ONE_M, 'b'),
+    ]
+
+    result = compare_city(corner, [corner[0][:2], corner[2][:2]])
+
+    assert [m[2] for m in result.unused] == ['corner']
+
+
+def test_the_sequence_does_not_chain():
+    line = [(*pole(0, 40 * k), f'P {k}') for k in range(4)]
+
+    result = compare_city(line, [pole(0), pole(0, 120)])
+
+    assert [m[2] for m in result.unused] == ['P 1', 'P 2']
+
+
 def test_assign_markers_to_the_first_city_and_the_rest_outside(city_a, city_b):
     in_a = (-44.89, -20.14, 'a')
     in_b = (-44.87, -20.14, 'b')
@@ -230,12 +306,17 @@ def test_comparison_kmz_has_a_folder_for_each_kind_of_pole():
     kml = read_kml(kmz)
     for folder in (
         'Licenciado e utilizado (1)',
+        'Licenciado entre outros em uso (0)',
         'Utilizado sem licença (1)',
         'Licenciado sem uso (0)',
         'Licenciado, aguardando cabos da cidade (1)',
         'Licenciado fora das cidades de MG e SP (0)',
     ):
         assert folder in kml
+    # The licensed markers keep their names; the BDGD poles have none
+    assert '<name>x</name><description>Poste da BDGD a 1.0 m' in kml
+    assert '<name>p</name>' in kml
+    assert '<Placemark><description>Poste da BDGD sem licenciado' in kml
 
 
 def read_kml(kmz: bytes) -> str:
@@ -320,11 +401,14 @@ async def test_every_backbone_and_only_the_latest_analysis_are_compared(
     ]
 
 
+def used_source(row_id, radius_m=25.0):
+    return licensed_service.UsedSource(
+        'analysis', 'x', date.today(), datetime.now(), row_id, radius_m
+    )
+
+
 def test_merge_used_joins_the_poles_of_the_sources_once():
-    def source(row_id):
-        return licensed_service.UsedSource(
-            'analysis', 'x', date.today(), datetime.now(), row_id, 25.0
-        )
+    source = used_source
 
     first, second = uuid4(), uuid4()
     files = {
@@ -344,6 +428,22 @@ def test_merge_used_joins_the_poles_of_the_sources_once():
 
     assert sorted(used) == sorted([pole(0), pole(1), pole(2)])
     assert cables == [(CABLE, 25.0)]
+
+
+def test_a_licensed_marker_is_in_use_with_a_cable_beyond_a_narrow_radius():
+    row_id = uuid4()
+    files = {
+        row_id: licensed_service.UsedFiles(
+            all_poles_kmz('a', [pole(0)]),
+            encode_cable_lines([Cable('f', 'FO-12', 'FO-12', CABLE)]),
+        )
+    }
+
+    narrow = licensed_service.merge_used([used_source(row_id, 12.0)], files)
+    wide = licensed_service.merge_used([used_source(row_id, 40.0)], files)
+
+    assert narrow[1] == [(CABLE, LICENSED_CABLE_M)]
+    assert wide[1] == [(CABLE, 40.0)]
 
 
 async def test_the_cables_are_stored_and_used_to_compare(

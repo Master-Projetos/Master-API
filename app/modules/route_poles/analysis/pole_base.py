@@ -111,14 +111,20 @@ def tile_y_to_lat(y: float) -> float:
 
 
 def decode_tile(tx: int, ty: int, data: bytes) -> list[LonLat]:
-    poles = []
-    for i in range(0, len(data) - POLE_BYTES + 1, POLE_BYTES):
-        qx, qy = struct.unpack_from('<HH', data, i)
-        poles.append((
+    """The poles of a tile, each position once: the BDGD has some poles
+    twice, at the very same point.
+    """
+    positions = dict.fromkeys(
+        struct.unpack_from('<HH', data, i)
+        for i in range(0, len(data) - POLE_BYTES + 1, POLE_BYTES)
+    )
+    return [
+        (
             tile_x_to_lon(tx + (qx + 0.5) / TILE_STEPS),
             tile_y_to_lat(ty + (qy + 0.5) / TILE_STEPS),
-        ))
-    return poles
+        )
+        for qx, qy in positions
+    ]
 
 
 def tile_range(bbox: Box) -> tuple[int, int, int, int]:

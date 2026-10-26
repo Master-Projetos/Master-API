@@ -5,16 +5,17 @@ description = 'API que ingloba todos os KPIS da master'
 authors = [
     {name = 'Eduardo',email = 'eduardo.vchaves23@gmail.com'}
 ]
-requires-python = '>=3.13,<4.0'
+# The code uses lazy imports (PEP 810), new in Python 3.15
+requires-python = '>=3.15,<4.0'
 dependencies = [
     'requests (>=2.32.0,<3.0.0)',
-    'pandas (>=3.0.5,<4.0.0)',
-    'fastapi[standard] (>=0.141.1,<0.142.0)',
+    "pandas (==3.1.0)",
+    "fastapi[standard] (==0.161.1)",
     'slowapi (>=0.1.10,<0.2.0)',
-    "sqlalchemy[asyncio] (>=2.1.1,<3.0.0)",
+    "sqlalchemy[asyncio] (==2.1.6)",
     "pwdlib[argon2] (>=0.3.1,<0.4.0)",
     "psycopg[binary] (>=3.3.6,<4.0.0)",
-    "alembic (>=1.20.0,<2.0.0)",
+    "alembic (==1.20.1)",
     "pyjwt (>=2.15.1,<3.0.0)",
     "openpyxl (>=3.1.5,<4.0.0)",
     "pydantic (==2.14.1)",
@@ -32,17 +33,9 @@ dev = [
     "pytest (>=9.1.1,<10.0.0)",
     "aiosqlite (>=0.22.1,<0.23.0)"
 ]
-# Only for scripts/gerar_base_postes.py (reads the BDGD File Geodatabase);
-# the API doesn't need it: poetry install --with postes
-postes = [
-    'pyogrio (>=0.11)'
-]
 
 [tool.poetry]
 package-mode = false
-
-[tool.poetry.group.postes]
-optional = true
 
 [tool.hatch.build.targets.wheel]
 packages = ['core', 'api']
@@ -52,6 +45,8 @@ dev = 'fastapi dev'
 lint = 'ruff check .'
 format = 'ruff format .'
 pos_format = 'ruff check . --fix'
+pre_tests = 'task format'
+tests = 'pytest -s -x -v'
 
 [tool.pytest.ini_options]
 testpaths = ['tests']

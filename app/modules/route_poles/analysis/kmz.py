@@ -23,9 +23,10 @@ OVERLAP_RULE = (
 WITH_OVERLAP_COLOR = 'ff0080ff'
 WITHOUT_OVERLAP_COLOR = 'ff00c000'
 
-# (folder, KML color aabbggrr, [(lon, lat, description), ...])
-PointGroup = tuple[str, str, list[tuple[float, float, str]]]
+# (folder, KML color aabbggrr, [(lon, lat, name, description), ...])
+PointGroup = tuple[str, str, list[tuple[float, float, str, str]]]
 LonLat = tuple[float, float]
+NAME_LABEL_SCALE = 0.8
 
 
 class KmzKind(StrEnum):
@@ -58,20 +59,27 @@ def _thousands(meters: float) -> str:
 
 
 def points_kmz(title: str, groups: list[PointGroup]) -> bytes:
+    """A group with named points shows the names, like the KMZ they came
+    from; the others show no label.
+    """
     parts = [KML_HEADER, f'<name>{escape(title)}</name>']
-    for k, (_, color, _) in enumerate(groups):
+    for k, (_, color, points) in enumerate(groups):
+        label = NAME_LABEL_SCALE if any(p[2] for p in points) else 0
         parts.append(
             f'<Style id="s{k}"><IconStyle><color>{color}</color>'
             f'<scale>0.5</scale><Icon><href>{POINT_ICON}</href></Icon>'
-            '</IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>'
+            f'</IconStyle><LabelStyle><scale>{label:g}</scale></LabelStyle>'
+            '</Style>'
         )
     for k, (folder, _, points) in enumerate(groups):
         parts.append(f'<Folder><name>{escape(folder)} ({len(points)})</name>')
         parts.extend(
-            f'<Placemark><description>{escape(description)}</description>'
+            '<Placemark>'
+            + (f'<name>{escape(name)}</name>' if name else '')
+            + f'<description>{escape(description)}</description>'
             f'<styleUrl>#s{k}</styleUrl><Point><coordinates>'
             f'{lon:.7f},{lat:.7f},0</coordinates></Point></Placemark>'
-            for lon, lat, description in points
+            for lon, lat, name, description in points
         )
         parts.append('</Folder>')
     parts.append(KML_FOOTER)
@@ -119,7 +127,9 @@ def near_poles_kmz(
     distance = result.min_distance
 
     def points(indexes: list[int]):
-        return [(*poles[i], f'{distance[i]:.1f} m do cabo') for i in indexes]
+        return [
+            (*poles[i], '', f'{distance[i]:.1f} m do cabo') for i in indexes
+        ]
 
     close = [i for i in result.near_poles if distance[i] <= close_m]
     far = [i for i in result.near_poles if distance[i] > close_m]
@@ -134,7 +144,7 @@ def near_poles_kmz(
 
 
 def all_poles_kmz(city_name: str, poles: list[LonLat]) -> bytes:
-    points = [(lon, lat, '') for lon, lat in poles]
+    points = [(lon, lat, '', '') for lon, lat in poles]
     return points_kmz(
         f'Postes - {city_name}', [('Postes do município', 'ffffffff', points)]
     )

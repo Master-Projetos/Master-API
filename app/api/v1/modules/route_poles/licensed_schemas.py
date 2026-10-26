@@ -48,7 +48,7 @@ class LicensedSetDetail(LicensedSetSummary):
     matched + unlicensed is their poles in use.
     """
 
-    # Max distance between a licensed marker and the pole in use
+    # Max distance between a licensed marker and the pole in use it matches
     tolerance_m: float
     matched: int
     unlicensed: int

@@ -86,7 +86,7 @@ async def get_current_user(
             token, settings.SECRET_KEY, algorithms=['HS256']
         )
         user_id = UUID(decoded_token['sub'])
-    except (jwt.InvalidTokenError, KeyError, ValueError):
+    except jwt.InvalidTokenError, KeyError, ValueError:
         raise invalid_token_exception from None
 
     user = await session.scalar(select(User).where(User.id == user_id))

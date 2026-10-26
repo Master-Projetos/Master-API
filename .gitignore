@@ -7,5 +7,4 @@ data/.idea/
 .idea/
 .docs/*.md
 docs/
-build_postes/
 cache_postes/

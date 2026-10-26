@@ -20,16 +20,17 @@ from app.modules.route_poles.analysis.clip import clip_lines
 from app.modules.route_poles.analysis.engine import analyze
 from app.modules.route_poles.analysis.errors import AnalysisError, SourceError
 from app.modules.route_poles.analysis.pole_base import (
+    decode_tile,
     lat_to_tile_y,
     lon_to_tile_x,
     read_poles,
 )
 from app.modules.route_poles.analysis.routes import read_cables
-from app.modules.route_poles.constants import DEFAULT_RADIUS_M
 from app.modules.route_poles.schemas import AnalysisOptions, RouteUploadOptions
 from tests.route_poles import scenarios as sc
 from tests.route_poles.conftest import make_city
 from tests.route_poles.golden_support import (
+    GOLDEN_RADIUS_M,
     describe_city,
     describe_data,
     describe_engine,
@@ -231,7 +232,9 @@ def test_run_analysis_matches_golden(
 ):
     content = sc.routes_kml() if filename.endswith('.kml') else sc.routes_kmz()
     data = pipeline.run_analysis(
-        content, filename, RouteUploadOptions(**options)
+        content,
+        filename,
+        RouteUploadOptions(**{'radius_m': GOLDEN_RADIUS_M, **options}),
     )
     assert describe_data(data) == load_golden('pipeline')[name]
 
@@ -255,7 +258,9 @@ CITY_ONLY_FIELDS = {'code', 'analysis_date', 'routes_file', 'radius_m'}
 )
 def test_run_backbone_matches_golden(routes_in_a_and_b, name, options):
     backbone = pipeline.run_backbone(
-        sc.routes_kmz(), 'backbone_bh.kmz', AnalysisOptions(**options)
+        sc.routes_kmz(),
+        'backbone_bh.kmz',
+        AnalysisOptions(**{'radius_m': GOLDEN_RADIUS_M, **options}),
     )
     expected = load_golden('pipeline')[name]
     assert [describe_data(c) for c in backbone.cities] == [
@@ -263,7 +268,7 @@ def test_run_backbone_matches_golden(routes_in_a_and_b, name, options):
         for city in expected
     ]
     assert backbone.routes_file == 'backbone_bh.kmz'
-    assert backbone.radius_m == DEFAULT_RADIUS_M
+    assert backbone.radius_m == GOLDEN_RADIUS_M
     assert backbone.code.endswith('_backbone_bh')
     assert backbone.backbone_date.isoformat() in backbone.code
 
@@ -330,12 +335,23 @@ def tile_base(path, tiles: dict[tuple[int, int], int]):
     with tarfile.open(path, 'w:gz') as tar:
         files = {'v1/manifest.json': b'{"data_base": "2025-12-31"}'}
         for (tx, ty), n in tiles.items():
-            files[f'v1/{tx}/{ty}.bin'] = struct.pack('<HH', 100, 200) * n
+            files[f'v1/{tx}/{ty}.bin'] = b''.join(
+                struct.pack('<HH', 100 + k, 200) for k in range(n)
+            )
         for name, data in files.items():
             info = tarfile.TarInfo(name)
             info.size = len(data)
             tar.addfile(info, io.BytesIO(data))
     return path
+
+
+def test_decode_tile_keeps_each_position_once():
+    once = struct.pack('<HH', 100, 200)
+    other = struct.pack('<HH', 101, 200)
+
+    assert decode_tile(0, 0, once * 2 + other) == decode_tile(
+        0, 0, once + other
+    )
 
 
 def test_read_poles_decodes_only_the_tiles_crossing_the_boxes(tmp_path):

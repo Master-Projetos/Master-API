@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.modules.route_poles.analysis.kmz import KmzKind
 from app.modules.route_poles.analysis_service import AnalysisRow
 from app.modules.route_poles.backbone_service import BackboneRow
-from app.modules.route_poles.constants import MATCH_TOLERANCE_M
+from app.modules.route_poles.constants import DISPLACED_POLE_M
 from app.modules.route_poles.jobs import BackboneJob
 from app.modules.route_poles.licensed_service import CityResult, SetResult
 from app.modules.route_poles.model import LicensedSet, StoredKmz
@@ -177,7 +177,7 @@ def licensed_detail(
     return build(
         LicensedSetDetail,
         licensed_summary(licensed),
-        tolerance_m=MATCH_TOLERANCE_M,
+        tolerance_m=DISPLACED_POLE_M,
         matched=sum(c.matched or 0 for c in cities),
         unlicensed=sum(c.unlicensed or 0 for c in cities),
         unused=sum(c.unused or 0 for c in cities),
