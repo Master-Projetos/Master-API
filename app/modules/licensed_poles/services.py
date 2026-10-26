@@ -45,6 +45,13 @@ async def get_licensed_poles_by_id(db: AsyncSession, licensed_pole_id: UUID):
     return result
 
 
+async def get_electric_carrier_by_id(db: AsyncSession, carrier_id: UUID):
+    result = await db.get(ElectricPowerCarrier, carrier_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail='municipal not found')
+    return result
+
+
 async def create_licensed_poles_service(
     db: AsyncSession, licensed_poles: LicensedPolesCreate
 ):

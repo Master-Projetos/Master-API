@@ -19,6 +19,7 @@ lazy from app.modules.licensed_poles.services import (
     delete_carrier_values,
     delete_licensed_poles,
     get_all_electric_carrier,
+    get_electric_carrier_by_id,
     get_licensed_poles,
     get_licensed_poles_by_id,
     update_carrier_values,
@@ -40,6 +41,13 @@ async def read_all_licensed_poles(session: SessionDep):
 )
 async def get_licensed_pole(licensed_pole_id: UUID, session: SessionDep):
     return await get_licensed_poles_by_id(session, licensed_pole_id)
+
+
+@licensed_poles_router.get(
+    '/carriers/{carrier_id}', response_model=CarriesValueCreate
+)
+async def get_licensed_carrier_by_id(carrier_id: UUID, session: SessionDep):
+    return await get_electric_carrier_by_id(session, carrier_id)
 
 
 @licensed_poles_router.post(
