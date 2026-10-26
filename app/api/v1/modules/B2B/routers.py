@@ -5,9 +5,9 @@ from fastapi import APIRouter, HTTPException, Request, Security
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.b2b.services import get_dashboard, load_b2b_data
+lazy from app.modules.b2b.services import get_dashboard, load_b2b_data
 
-from .schemas import B2BDashboard
+from app.api.v1.modules.B2B.schemas import B2BDashboard
 
 logger = logging.getLogger(__name__)
 

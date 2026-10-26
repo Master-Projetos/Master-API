@@ -8,9 +8,9 @@ from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
 from app.modules.swap.common import to_records
-from app.modules.swap.service_v5 import load_sections
+lazy from app.modules.swap.service_v5 import load_sections
 
-from .schemas import SwapList
+from app.api.v1.modules.swap.schemas import SwapList
 
 logger = logging.getLogger(__name__)
 

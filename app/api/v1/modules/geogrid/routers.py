@@ -12,7 +12,7 @@ from app.core.constants import ALLOWED_RELATORIES
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.geogrid.service import (
+lazy from app.modules.geogrid.service import (
     export_lock,
     get_status,
     run_export,

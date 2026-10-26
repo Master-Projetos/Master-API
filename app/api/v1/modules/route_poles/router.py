@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from . import analyses, backbones, licensed
+lazy from app.api.v1.modules.route_poles import analyses, backbones, licensed
 
 router = APIRouter(prefix='/route-poles', tags=['Route poles'])
 

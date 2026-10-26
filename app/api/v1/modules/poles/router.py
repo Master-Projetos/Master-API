@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Security
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.poles.service_v7 import load_viability_poles
+lazy from app.modules.poles.service_v7 import load_viability_poles
 from app.api.v1.modules.poles.schemas import PolesByUtility
 
 logger = logging.getLogger(__name__)

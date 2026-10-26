@@ -7,12 +7,12 @@ from app.core.constants import STOCK_V6_SHEETS
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-from app.modules.stock.service_v6 import (
+lazy from app.modules.stock.service_v6 import (
     load_config,
     load_sheets,
     merge_minimal_stock,
 )
-from app.modules.stock.services import load_restock_schedule
+lazy from app.modules.stock.services import load_restock_schedule
 
 from app.api.v1.modules.stock.schemas import (
     RestockSchedule,

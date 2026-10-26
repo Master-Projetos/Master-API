@@ -1,9 +1,10 @@
+import sys
 from fastapi import APIRouter, Request
 
 from app.core.limiter import limiter
 
-from .schemas import Root, Stroll
-from .services import where_stroll_finish
+from app.api.v1.modules.system.schemas import Root, Stroll
+from app.api.v1.modules.system.services import where_stroll_finish
 
 router = APIRouter()
 
@@ -15,6 +16,7 @@ def read_root(request: Request):
         'service': 'Leclerc API',
         'version': '0.2.2',
         'description': 'API criada para bater no muro (Derrubar o seu sistema)',
+        'python_version': sys.version,
     }
 
 
