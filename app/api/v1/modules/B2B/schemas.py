@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 
 class Item(BaseModel):
+    row: int
     deadline: str | None
     client: str
     requester: str | None

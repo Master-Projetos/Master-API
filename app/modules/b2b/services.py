@@ -30,6 +30,7 @@ NUMERIC_COLUMNS = ['Valores Projetos - Aprovados', 'Valores Projetos - Total']
 
 # Sheet columns exposed with each item, mapped to their response name
 ITEM_COLUMNS = {
+    'row': 'row',
     'Prazo': 'deadline',
     'Cliente B2B': 'client',
     'Solicitante': 'requester',
@@ -119,6 +120,9 @@ def _value_items(df: pd.DataFrame, column: str) -> list[dict]:
 def load_b2b_data() -> pd.DataFrame:
     logger.info('Fetching B2B spreadsheet')
     df = pd.read_csv(B2B_SHEET_URL)
+
+    # The header takes the first sheet row, so data starts at row 2
+    df['row'] = df.index + 2
 
     df = df.drop(COLUMNS_TO_DROP, axis='columns')
 
