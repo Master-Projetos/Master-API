@@ -35,6 +35,8 @@ SWAP_V5_SHEET_URL = settings.SWAP_V5_SHEET_URL
 # Base export URL of the v6 stock sheet, without the tab (gid)
 STOCK_V6_SHEET_URL = settings.STOCK_V6_SHEET_URL
 
+VIABILIDADE_SHEET_URL = settings.VIABILIDADE_SHEET_URL
+
 # Tab name in the response -> gid of the tab in the sheet
 STOCK_V6_SHEETS = {
     'dvl': '1702172882',

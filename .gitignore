@@ -8,3 +8,10 @@ data/.idea/
 .docs/*.md
 docs/
 cache_postes/
+.vscodedata/viabilidade.json
+data/viabilidade.json
+data/viabilidade.status.json
+/tests.py
+data/viabilidade.json
+data/viabilidade.status.json
+/tests.py
