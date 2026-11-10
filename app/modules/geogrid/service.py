@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import threading
 import unicodedata
 from datetime import datetime, timedelta
@@ -23,7 +24,8 @@ _session: requests.Session | None = None
 _last_login_at: datetime | None = None
 
 GEOGRID_API = GEOGRID_URL.rstrip('/') + '/api/v3'
-GEOGRID_VERSION = '199.7'
+# Fallback when the version can't be read from the Geogrid frontend
+GEOGRID_VERSION = '200.1'
 REGISTROS_POR_PAGINA = 1000
 
 # Map from the report's field names to the display column names the rest of the
@@ -102,12 +104,27 @@ def get_status(relatory: str) -> dict | None:
         return json.load(fh)
 
 
+def _fetch_version() -> str:
+    # Geogrid answers 426 when the Geogrid-Version header is outdated, so read
+    # the current version from the ?v= of the frontend assets
+    try:
+        resp = requests.get(GEOGRID_URL, timeout=30)
+        resp.raise_for_status()
+        match = re.search(r'\?v=([\d.]+)', resp.text)
+        if match:
+            return match.group(1)
+    except requests.RequestException:
+        logger.warning('Could not fetch Geogrid version, using fallback')
+    return GEOGRID_VERSION
+
+
 def login():
-    logger.info('Logging in to Geogrid API')
+    version = _fetch_version()
+    logger.info('Logging in to Geogrid API (version %s)', version)
     session = requests.Session()
     session.headers.update({
         'Accept': 'application/json',
-        'Geogrid-Version': GEOGRID_VERSION,
+        'Geogrid-Version': version,
     })
     resp = session.post(
         f'{GEOGRID_API}/autenticar',
@@ -218,6 +235,7 @@ def run_export(relatory: str):
             if error.response is not None and error.response.status_code in (
                 401,
                 403,
+                426,
             ):
                 logger.warning(
                     'relatory=%s: session rejected (%s), invalidating cached session',

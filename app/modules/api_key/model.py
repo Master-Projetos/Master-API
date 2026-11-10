@@ -18,6 +18,7 @@ class Scope(StrEnum):
     ROUTE_POLES_WRITE = 'route_poles:write'
     RESTOCK_READ = 'restock:read'
     RESTOCK_WRITE = 'restock:write'
+    VIABILIDADE_READ = 'viabilidade:read'
 
 
 class ApiKey(Base):
