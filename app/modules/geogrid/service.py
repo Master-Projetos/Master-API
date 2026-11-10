@@ -303,6 +303,9 @@ def treat_viabilidade():
         columns=FIELD_MAP
     )
 
+    tipo = raw_df['Tipo'].apply(_normalize)
+    raw_df = raw_df[~tipo.str.contains('cto generica')]
+
     mask_cto = raw_df['Tipo'].str.contains('CTO', case=False, na=False)
 
     cto_df = raw_df[mask_cto].copy()

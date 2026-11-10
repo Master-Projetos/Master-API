@@ -4,7 +4,10 @@ from fastapi import APIRouter, HTTPException, Query, Request, Security
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
-lazy from app.modules.poles.service_v7 import load_viability_poles
+lazy from app.modules.poles.service_v7 import (
+    UnknownPoleOwnersError,
+    load_viability_poles,
+)
 from app.api.v1.modules.poles.schemas import PolesByUtility
 
 logger = logging.getLogger(__name__)
@@ -24,7 +27,7 @@ def read_poles(
     try:
         return load_viability_poles(pole_owners)
 
-    except LookupError as error:
+    except UnknownPoleOwnersError as error:
         raise HTTPException(
             status_code=422, detail=f'Unknown utilities {error.args[0]}'
         )
