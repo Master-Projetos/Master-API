@@ -14,4 +14,5 @@ os.environ.update({
     'STOCK_V6_SHEET_URL': 'http://localhost/stock6',
     'POLES_V7_SHEET_URL': 'http://localhost/poles',
     'VIABILIDADE_SHEET_URL': 'http://localhost/viabilidade',
+    'ATENDENTES_SHEET_URL': 'http://localhost/atendentes',
 })

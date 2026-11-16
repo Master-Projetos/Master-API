@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     STOCK_V6_SHEET_URL: str
     POLES_V7_SHEET_URL: str
     VIABILIDADE_SHEET_URL: str
+    # xlsx export of the attendants' CTO check sheet (Google Sheets); empty
+    # disables the critical CTOs endpoint instead of breaking startup
+    ATENDENTES_SHEET_URL: str = ''
 
 
 @lru_cache

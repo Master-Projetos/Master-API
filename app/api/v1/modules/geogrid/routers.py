@@ -1,25 +1,34 @@
 import logging
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     HTTPException,
+    Query,
     Request,
     Security,
 )
 
+from app.api.v1.modules.geogrid.schemas import (
+    CriticalCtosResponse,
+    ReportSchema,
+    Viabily,
+)
 from app.core.constants import ALLOWED_RELATORIES
 from app.core.limiter import limiter
 from app.core.security import require_scope
 from app.modules.api_key.model import Scope
+lazy from app.modules.geogrid.critical_ctos import (
+    SheetUnavailableError,
+    find_critical_ctos,
+)
 lazy from app.modules.geogrid.service import (
     export_lock,
     get_status,
     run_export,
     treat_viabilidade,
 )
-
-from app.api.v1.modules.geogrid.schemas import ReportSchema, Viabily
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +66,8 @@ def request_export(
 
     if export_lock.locked():
         logger.info(
-            'relatory=%s: export requested but another export is already running',
+            'relatory=%s: export requested but another export is '
+            'already running',
             relatory,
         )
         raise HTTPException(
@@ -78,3 +88,27 @@ def get_data(request: Request):
         raise HTTPException(status_code=400, detail='Relatory has not find')
 
     return viability_json
+
+
+@router.get('/viability/critical-ctos', response_model=CriticalCtosResponse)
+@limiter.limit('10/minute')
+def get_critical_ctos(
+    request: Request,
+    max_livres: Annotated[
+        int,
+        Query(ge=0, description='Critical with at most this many free ports'),
+    ] = 1,
+):
+    try:
+        result = find_critical_ctos(max_livres)
+    except SheetUnavailableError as error:
+        logger.error('critical CTOs: attendants sheet unavailable: %s', error)
+        raise HTTPException(
+            status_code=502, detail='Attendants sheet unavailable'
+        ) from error
+
+    if result is None:
+        logger.warning('critical CTOs requested but viability not found')
+        raise HTTPException(status_code=400, detail='Relatory has not find')
+
+    return result

@@ -20,8 +20,7 @@ GEOGRID_USER = settings.GEOGRID_USER
 GEOGRID_PASS = settings.GEOGRID_PASSWORD
 SESSION_TTL = settings.SESSION_TTL_MINUTES
 
-_session: requests.Session | None = None
-_last_login_at: datetime | None = None
+_auth: dict = {'session': None, 'last_login_at': None}
 
 GEOGRID_API = GEOGRID_URL.rstrip('/') + '/api/v3'
 # Fallback when the version can't be read from the Geogrid frontend
@@ -35,6 +34,8 @@ FIELD_MAP = {
     'latitude': 'Latitude',
     'longitude': 'Longitude',
     'cidade': 'Cidade',
+    'bairro': 'Bairro',
+    'cep': 'CEP',
     'descricaoRecipienteTipo': 'Tipo',
     'quantidadeEquipamentos': 'Quantidade equip.',
     'quantidadePortas': 'Quantidade portas',
@@ -150,18 +151,17 @@ def login():
 
 
 def ensure_session() -> requests.Session:
-    global _session, _last_login_at
-
+    last_login_at = _auth['last_login_at']
     expired = (
-        _last_login_at is None
-        or datetime.now() - _last_login_at > timedelta(minutes=SESSION_TTL)
+        last_login_at is None
+        or datetime.now() - last_login_at > timedelta(minutes=SESSION_TTL)
     )
-    if _session is None or expired:
+    if _auth['session'] is None or expired:
         logger.info('Session missing or expired, creating a new one')
-        _session = login()
-        _last_login_at = datetime.now()
+        _auth['session'] = login()
+        _auth['last_login_at'] = datetime.now()
 
-    return _session
+    return _auth['session']
 
 
 def export_relatory(relatory: str, download_dir: str = None):
@@ -178,71 +178,87 @@ def export_relatory(relatory: str, download_dir: str = None):
     set_status(relatory, step='login')
     session = ensure_session()
 
-    registros = []
+    # Pages are streamed to a temp file instead of accumulated in memory, and
+    # the previous export is only replaced once the new one is complete.
+    file_path = os.path.join(download_dir, f'{relatory}.json')
+    tmp_path = f'{file_path}.tmp'
+    total_registros = 0
     pagina = 1
     total_paginas = None
-    while True:
-        resp = session.get(
-            f'{GEOGRID_API}/relatorios/{relatory}',
-            params={
-                'pagina': pagina,
-                'registrosPorPagina': REGISTROS_POR_PAGINA,
-                'consultarTotais': 'S' if pagina == 1 else 'N',
-                'modoProjeto[]': 'N',
-            },
-            timeout=120,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    with open(tmp_path, 'w', encoding='utf-8') as fh:
+        fh.write('[')
+        while True:
+            resp = session.get(
+                f'{GEOGRID_API}/relatorios/{relatory}',
+                params={
+                    'pagina': pagina,
+                    'registrosPorPagina': REGISTROS_POR_PAGINA,
+                    'consultarTotais': 'S' if pagina == 1 else 'N',
+                    'modoProjeto[]': 'N',
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-        pagina_registros = data.get('registros', [])
-        registros.extend(pagina_registros)
+            pagina_registros = data.get('registros', [])
+            if relatory == 'viabilidade':
+                pagina_registros = [
+                    {field: registro.get(field) for field in FIELD_MAP}
+                    for registro in pagina_registros
+                ]
+            for registro in pagina_registros:
+                if total_registros:
+                    fh.write(',')
+                json.dump(registro, fh, ensure_ascii=False)
+                total_registros += 1
 
-        if total_paginas is None:
-            total = int(data.get('totalRegistros', 0))
-            total_paginas = max(1, -(-total // REGISTROS_POR_PAGINA))  # ceil
+            if total_paginas is None:
+                total = int(data.get('totalRegistros', 0))
+                total_paginas = max(1, -(-total // REGISTROS_POR_PAGINA))
 
-        set_status(relatory, step=f'baixando pagina {pagina}/{total_paginas}')
-        logger.info(
-            'relatory=%s: downloaded page %s/%s',
-            relatory,
-            pagina,
-            total_paginas,
-        )
+            set_status(
+                relatory, step=f'baixando pagina {pagina}/{total_paginas}'
+            )
+            logger.info(
+                'relatory=%s: downloaded page %s/%s',
+                relatory,
+                pagina,
+                total_paginas,
+            )
 
-        if pagina >= total_paginas or not pagina_registros:
-            break
-        pagina += 1
+            if pagina >= total_paginas or not pagina_registros:
+                break
+            pagina += 1
+        fh.write(']')
 
-    file_path = os.path.join(download_dir, f'{relatory}.json')
-    with open(file_path, 'w', encoding='utf-8') as fh:
-        json.dump(registros, fh, ensure_ascii=False)
+    os.replace(tmp_path, file_path)
 
     set_status(relatory, step='Concluido', status='Done')
     logger.info(
         'relatory=%s: export finished with %s records',
         relatory,
-        len(registros),
+        total_registros,
     )
 
 
 def run_export(relatory: str):
-    global _session
     with export_lock:
         try:
             export_relatory(relatory)
         except requests.HTTPError as error:
-            if error.response is not None and error.response.status_code in (
+            if error.response is not None and error.response.status_code in {
                 401,
                 403,
                 426,
-            ):
+            }:
                 logger.warning(
-                    'relatory=%s: session rejected (%s), invalidating cached session',
+                    'relatory=%s: session rejected (%s), '
+                    'invalidating cached session',
                     relatory,
                     error.response.status_code,
                 )
-                _session = None
+                _auth['session'] = None
             logger.exception('relatory=%s: export failed', relatory)
             set_status(relatory, step=f'Falha: {error}', status='Error')
             raise
@@ -276,6 +292,13 @@ def _group_by_region(table: pd.DataFrame) -> dict:
     }
 
 
+def _group_by_type(table: pd.DataFrame) -> dict:
+    return {
+        tipo: _group_by_region(tipo_group)
+        for tipo, tipo_group in table.groupby('Tipo')
+    }
+
+
 def _sum_stats(table: pd.DataFrame) -> dict:
     return {
         label: int(table[col].sum()) for col, label in STATS_LABELS.items()
@@ -288,23 +311,52 @@ def _stats_by_region(table: pd.DataFrame) -> dict:
     }
 
 
-def treat_viabilidade():
+_viabilidade_cache_lock = threading.Lock()
+_viabilidade_cache: dict = {'mtime': None, 'data': None, 'ctos': None}
+
+
+def _load_viabilidade_cache() -> dict | None:
+    # The result only changes when a new export replaces the file, so it is
+    # cached by the file's mtime instead of being rebuilt on every request.
     file_path = os.path.join(_get_data_dir(), 'viabilidade.json')
 
     if not os.path.isfile(file_path):
-        logger.warning('treat_viabilidade: file not found at %s', file_path)
+        logger.warning('viabilidade: file not found at %s', file_path)
         return None
 
-    with open(file_path, encoding='utf-8') as fh:
-        registros = json.load(fh)
+    with _viabilidade_cache_lock:
+        mtime = os.path.getmtime(file_path)
+        if _viabilidade_cache['mtime'] != mtime:
+            with open(file_path, encoding='utf-8') as fh:
+                registros = json.load(fh)
+            cto_table, ceo_table = _build_tables(registros)
+            _viabilidade_cache['data'] = _build_viabilidade(
+                cto_table, ceo_table
+            )
+            _viabilidade_cache['ctos'] = cto_table
+            _viabilidade_cache['mtime'] = mtime
+        return dict(_viabilidade_cache)
 
+
+def treat_viabilidade():
+    cache = _load_viabilidade_cache()
+    return cache['data'] if cache else None
+
+
+def get_cto_table() -> pd.DataFrame | None:
+    # Flat table of the CTOs (one row per box), same cleaning as /viability
+    cache = _load_viabilidade_cache()
+    return cache['ctos'] if cache else None
+
+
+def _build_tables(registros: list) -> tuple[pd.DataFrame, pd.DataFrame]:
     raw_df = pd.DataFrame(registros)
-    raw_df = raw_df[[c for c in FIELD_MAP if c in raw_df.columns]].rename(
-        columns=FIELD_MAP
-    )
+    # reindex keeps exports made before a field was added to FIELD_MAP working
+    raw_df = raw_df.reindex(columns=list(FIELD_MAP)).rename(columns=FIELD_MAP)
 
     tipo = raw_df['Tipo'].apply(_normalize)
-    raw_df = raw_df[~tipo.str.contains('cto generica')]
+    raw_df = raw_df[~tipo.str.contains('cto generica')].copy()
+    raw_df['Tipo'] = raw_df['Tipo'].fillna('SEM TIPO')
 
     mask_cto = raw_df['Tipo'].str.contains('CTO', case=False, na=False)
 
@@ -326,9 +378,12 @@ def treat_viabilidade():
 
     cols_tabela = [
         'Sigla',
+        'Tipo',
         'Latitude',
         'Longitude',
         'Cidade',
+        'Bairro',
+        'CEP',
         'Regiao',
     ] + cols_numericas
     cto_table = cto_df[cols_tabela].copy().fillna('')
@@ -337,9 +392,21 @@ def treat_viabilidade():
     ceo_df[cols_numericas] = ceo_df[cols_numericas].fillna(0)
     ceo_table = ceo_df[cols_tabela].copy().fillna('')
 
+    return cto_table, ceo_table
+
+
+def _build_viabilidade(
+    cto_table: pd.DataFrame, ceo_table: pd.DataFrame
+) -> dict:
     return {
         'estatisticas': _sum_stats(cto_table),
         'estatisticas_regiao': _stats_by_region(cto_table),
-        'ctos': _group_by_region(cto_table),
-        'ceos': _group_by_region(ceo_table),
+        'estatisticas_tipo': {
+            tipo: _sum_stats(group)
+            for tipo, group in pd.concat([cto_table, ceo_table]).groupby(
+                'Tipo'
+            )
+        },
+        'ctos': _group_by_type(cto_table),
+        'ceos': _group_by_type(ceo_table),
     }
