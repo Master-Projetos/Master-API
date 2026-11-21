@@ -25,7 +25,8 @@ _cache: dict = {'report': None, 'at': 0.0}
 
 def _normalize(column):
     return (
-        column.str.normalize('NFKD')
+        column.str
+        .normalize('NFKD')
         .str.encode('ascii', errors='ignore')
         .str.decode('ascii')
         .str.replace(r'[\x00-\x1f]', '', regex=True)

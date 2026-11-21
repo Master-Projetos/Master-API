@@ -5,7 +5,7 @@ class Root(BaseModel):
     service: str
     version: str
     description: str
-    python_version : str
+    python_version: str
 
 
 class Stroll(BaseModel):

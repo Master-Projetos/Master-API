@@ -15,6 +15,8 @@ from app.modules.user.model import User
 from app.modules.restock.model import Restock
 from app.modules.licensed_poles.model import LicensedPoles
 from app.modules.licensed_poles.model import ElectricPowerCarrier
+from app.modules.geogrid.v2.viability.model import ViabilityModel
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

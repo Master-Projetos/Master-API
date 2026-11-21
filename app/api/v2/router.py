@@ -3,6 +3,7 @@ lazy from fastapi import APIRouter
 lazy from app.api.v2.modules.licensed_poles.router import licensed_poles_router
 lazy from app.api.v2.modules.restock.router import restock_router
 lazy from app.api.v2.modules.viabilidade.router import viabilidade_router
+lazy from app.modules.geogrid.v2.router import geogrid_router
 
 v2_router = APIRouter()
 
@@ -14,3 +15,5 @@ v2_router.include_router(
 v2_router.include_router(
     viabilidade_router, prefix='/viabilidade', tags=['viabilidade']
 )
+
+v2_router.include_router(geogrid_router, prefix='/geogrid', tags=['geogrid'])
