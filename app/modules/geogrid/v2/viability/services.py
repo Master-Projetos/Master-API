@@ -1,5 +1,5 @@
 lazy import pandas as pd
-lazy from sqlalchemy import delete, insert
+lazy from sqlalchemy import delete, insert, select
 lazy from sqlalchemy.orm import Session
 lazy from app.modules.geogrid.v2.viability.model import ViabilityModel
 lazy from app.modules.geogrid.v2.client import fetch_geogrid_report
@@ -7,6 +7,11 @@ lazy from app.modules.geogrid.v2.viability.constants import (
     COLUMNS,
     NUMERIC_COLUMNS,
 )
+
+
+async def fetch_viability_record(session: Session):
+    record = await session.scalars(select(ViabilityModel))
+    return list(record.all())
 
 
 async def sync_viability_record(session: Session):
