@@ -16,7 +16,7 @@ from app.modules.restock.model import Restock
 from app.modules.licensed_poles.model import LicensedPoles
 from app.modules.licensed_poles.model import ElectricPowerCarrier
 from app.modules.geogrid.v2.viability.model import ViabilityModel
-
+from app.modules.b2b.v2.model import B2bModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
