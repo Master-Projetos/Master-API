@@ -9,6 +9,7 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
+from cachetools import TTLCache
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader, APIKeyQuery, OAuth2PasswordBearer
 from pwdlib import PasswordHash
@@ -35,6 +36,12 @@ logger = logging.getLogger(__name__)
 API_KEY_PREFIX = 'lk'
 API_KEY_PARTS = 3
 LAST_USED_UPDATE_INTERVAL = timedelta(minutes=5)
+API_KEY_CACHE_TTL_SECONDS = 60
+
+# Validated keys indexed by key_hash, so most requests skip the database.
+# Revoking removes the entry right away (revoke_api_key_service); deactivating
+# the user takes up to API_KEY_CACHE_TTL_SECONDS to apply.
+api_key_cache = TTLCache(maxsize=1000, ttl=API_KEY_CACHE_TTL_SECONDS)
 
 
 def get_password_hash(plain_password: str) -> str:
@@ -125,6 +132,8 @@ class ApiKeyPrincipal:
     user: User
     key_id: UUID
     scopes: frozenset[str]
+    # Kept so a cached key is still rejected once it expires
+    expires_at: datetime | None
 
 
 async def get_api_key_principal(
@@ -167,6 +176,24 @@ async def authenticate_api_key(
         )
         raise invalid_key_exception
 
+    key_hash = hash_api_key(raw_key)
+    now = datetime.now(tz=timezone.utc)
+
+    # Cache hit: the hash matched a key already validated, no database query
+    cached_principal = api_key_cache.get(key_hash)
+    if cached_principal is not None:
+        is_expired = (
+            cached_principal.expires_at is not None
+            and cached_principal.expires_at <= now
+        )
+        if is_expired:
+            api_key_cache.pop(key_hash, None)
+            logger.warning('api key rejected: prefix %s expired', parts[1])
+            raise invalid_key_exception
+
+        request.state.client = f'key:{cached_principal.key_id}'
+        return cached_principal
+
     row = (
         await session.execute(
             select(ApiKey, User)
@@ -179,15 +206,16 @@ async def authenticate_api_key(
         raise invalid_key_exception
 
     api_key, user = row
-    if not hmac.compare_digest(api_key.key_hash, hash_api_key(raw_key)):
+    if not hmac.compare_digest(api_key.key_hash, key_hash):
         logger.warning(
             'api key rejected: wrong secret for prefix %s', parts[1]
         )
         raise invalid_key_exception
 
-    # Checked on every request: revoking, expiring or deactivating the
-    # user takes effect immediately
-    now = datetime.now(tz=timezone.utc)
+    # Checked whenever the key is loaded from the database. Revoking applies
+    # immediately (the revoke removes the cache entry); expiring is also
+    # checked on cache hits; deactivating the user applies once the entry
+    # leaves the cache
     is_expired = api_key.expires_at is not None and api_key.expires_at <= now
     if api_key.revoked_at is not None or is_expired or not user.is_active:
         logger.warning(
@@ -218,9 +246,14 @@ async def authenticate_api_key(
     # Used by the rate limiter key_func
     request.state.client = f'key:{api_key.id}'
 
-    return ApiKeyPrincipal(
-        user=user, key_id=api_key.id, scopes=frozenset(api_key.scopes)
+    principal = ApiKeyPrincipal(
+        user=user,
+        key_id=api_key.id,
+        scopes=frozenset(api_key.scopes),
+        expires_at=api_key.expires_at,
     )
+    api_key_cache[key_hash] = principal
+    return principal
 
 
 def require_scope(scope: Scope, allow_query: bool = False):

@@ -6,7 +6,3 @@ class Root(BaseModel):
     version: str
     description: str
     python_version: str
-
-
-class Stroll(BaseModel):
-    message: str
