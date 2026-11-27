@@ -7,6 +7,7 @@ lazy from sqlalchemy.orm import Mapped, mapped_column
 class B2bModel(Base):
     __tablename__ = 'b2b_projects'
 
+    identify_code: Mapped[str]
     client: Mapped[str]
     team: Mapped[str]
     sector: Mapped[str]
@@ -19,3 +20,4 @@ class B2bModel(Base):
     sla_deadline: Mapped[datetime]
     value: Mapped[float]
     approved: Mapped[bool] = mapped_column(default=False)
+    delay_explanation: Mapped[str] = mapped_column(default=None)

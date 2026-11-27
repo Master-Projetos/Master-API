@@ -1,6 +1,10 @@
 lazy from fastapi import APIRouter
 
-lazy from app.api.v2.modules.licensed_poles.router import licensed_poles_router
+lazy from app.api.v2.modules.poles.carriers.router import carriers_router
+lazy from app.api.v2.modules.poles.licensed_poles.router import (
+    licensed_poles_router,
+)
+lazy from app.api.v2.modules.poles.projects.router import projects_router
 lazy from app.api.v2.modules.restock.router import restock_router
 lazy from app.api.v2.modules.viabilidade.router import viabilidade_router
 lazy from app.modules.b2b.v2.router import b2b_router
@@ -12,6 +16,12 @@ v2_router = APIRouter()
 v2_router.include_router(restock_router, prefix='/restock', tags=['restock'])
 v2_router.include_router(
     licensed_poles_router, prefix='/licensed-poles', tags=['licensed_poles']
+)
+v2_router.include_router(
+    carriers_router, prefix='/licensed-poles', tags=['carriers']
+)
+v2_router.include_router(
+    projects_router, prefix='/licensed-poles', tags=['projects']
 )
 v2_router.include_router(
     viabilidade_router, prefix='/viabilidade', tags=['viabilidade']

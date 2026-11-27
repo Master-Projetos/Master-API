@@ -9,6 +9,7 @@ class B2bCreate(BaseModel):
         json_schema_extra={
             'examples': [
                 {
+                    'identify_code': '31x3',
                     'client': 'Octane',
                     'team': 'Forever Platinums',
                     'sector': 'Blue Team',
@@ -20,11 +21,12 @@ class B2bCreate(BaseModel):
                     'sla_deadline': '11/10/10',
                     'value': 5.0,
                     'approved': 'B2B',
+                    'delay_explanation': 'we bad, just that'
                 }
             ]
         }
     )
-
+    identify_code: str = Field(min_length=2)
     client: str = Field(min_length=3, max_length=100)
     team: str
     sector: str = Field(min_length=2, max_length=50)
@@ -37,9 +39,11 @@ class B2bCreate(BaseModel):
     sla_deadline: datetime
     value: Decimal = Field(max_digits=12, decimal_places=2, ge=0)
     approved: bool = False
+    delay_explanation : str | None = None
 
 
 class B2bUpdate(BaseModel):
+    identify_code: str | None = Field(default=None, min_length=2)
     client: str | None = Field(default=None, min_length=3, max_length=100)
     team: str | None = None
     sector: str | None = Field(default=None, min_length=2, max_length=50)
@@ -54,3 +58,4 @@ class B2bUpdate(BaseModel):
         default=None, max_digits=12, decimal_places=2, ge=0
     )
     approved: bool | None = None
+    delay_explanation : str | None = None

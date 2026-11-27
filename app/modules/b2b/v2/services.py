@@ -38,7 +38,9 @@ async def create_b2b_report(
 
 
 async def update_b2b_report(
-    session: AsyncSession, b2b_data: B2bUpdate, report_id: UUID
+    session: AsyncSession, 
+    b2b_data: B2bUpdate, 
+    report_id: UUID
 ) -> B2bModel:
     target_report = await session.get(B2bModel, report_id)
 
